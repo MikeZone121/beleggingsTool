@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AssetType {
+  STOCK
+  ETF
+  FUND
+  BOND
+  CASH
+  CRYPTO
+  OTHER
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DIVIDEND
+  DEPOSIT
+  WITHDRAWAL
+  FEE
+  TAX
+  INTEREST
+  TRANSFER
+  SPLIT
+  OTHER
+}
+
+enum DividendStatus {
+  ANNOUNCED
+  CONFIRMED
+  PAID
+}
+
+enum CorporateActionType {
+  SPLIT
+  REVERSE_SPLIT
+  MERGER
+  SPINOFF
+  TICKER_CHANGE
+}
+
+enum CostBasisMethod {
+  AVERAGE_COST
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String?
+  passwordHash String?
+  portfolios   Portfolio[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Portfolio {
+  id               String           @id @default(cuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  baseCurrency     String
+  /// Locked in once the portfolio has any transactions - see lib/finance/costBasis.ts
+  accountingMethod CostBasisMethod  @default(AVERAGE_COST)
+  isDefault        Boolean          @default(true)
+  accounts         Account[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                  String        @id @default(cuid())
+  portfolioId         String
+  portfolio           Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  name                String
+  brokerName          String?
+  accountNumberMasked String?
+  currency            String
+  transactions        Transaction[]
+  importBatches       ImportBatch[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([portfolioId])
+}
+
+model Security {
+  id               String            @id @default(cuid())
+  ticker           String
+  name             String
+  isin             String?
+  assetType        AssetType
+  exchange         String?
+  currency         String
+  country          String?
+  sector           String?
+  currentPrice     Decimal?          @db.Decimal(20, 8)
+  priceUpdatedAt   DateTime?
+  metadata         Json?
+  transactions     Transaction[]
+  prices           Price[]
+  dividends        Dividend[]
+  corporateActions CorporateAction[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([ticker, exchange])
+  @@index([isin])
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  accountId    String
+  account      Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  securityId   String?
+  security     Security?       @relation(fields: [securityId], references: [id])
+  type         TransactionType
+  date         DateTime        @db.Date
+  quantity     Decimal?        @db.Decimal(20, 8)
+  price        Decimal?        @db.Decimal(20, 8)
+  grossAmount  Decimal         @db.Decimal(18, 4)
+  fees         Decimal         @default(0) @db.Decimal(18, 4)
+  taxes        Decimal         @default(0) @db.Decimal(18, 4)
+  netAmount    Decimal         @db.Decimal(18, 4)
+  currency     String
+  exchangeRate Decimal?        @db.Decimal(18, 8)
+  notes        String?
+  externalId   String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([accountId, date])
+  @@index([securityId])
+  @@unique([accountId, externalId])
+}
+
+model Price {
+  id            String   @id @default(cuid())
+  securityId    String
+  security      Security @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  date          DateTime @db.Date
+  open          Decimal? @db.Decimal(20, 8)
+  high          Decimal? @db.Decimal(20, 8)
+  low           Decimal? @db.Decimal(20, 8)
+  close         Decimal  @db.Decimal(20, 8)
+  adjustedClose Decimal? @db.Decimal(20, 8)
+  currency      String
+
+  @@unique([securityId, date])
+}
+
+model Dividend {
+  id               String         @id @default(cuid())
+  securityId       String
+  security         Security       @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  exDividendDate   DateTime       @db.Date
+  recordDate       DateTime?      @db.Date
+  paymentDate      DateTime?      @db.Date
+  dividendPerShare Decimal        @db.Decimal(20, 8)
+  currency         String
+  source           String
+  status           DividendStatus @default(CONFIRMED)
+
+  @@index([securityId, exDividendDate])
+}
+
+model ExchangeRate {
+  id            String   @id @default(cuid())
+  baseCurrency  String
+  quoteCurrency String
+  date          DateTime @db.Date
+  rate          Decimal  @db.Decimal(18, 8)
+  source        String
+
+  @@unique([baseCurrency, quoteCurrency, date])
+}
+
+model CorporateAction {
+  id            String              @id @default(cuid())
+  securityId    String
+  security      Security            @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  type          CorporateActionType
+  effectiveDate DateTime            @db.Date
+  /// Shape depends on `type`, e.g. SPLIT: { "ratio": "2:1" }
+  details       Json
+  createdAt     DateTime            @default(now())
+}
+
+model ImportBatch {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  source    String
+  fileName  String
+  status    String
+  /// { imported, skipped, duplicates, errors: [...] }
+  summary   Json
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+}
