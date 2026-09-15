@@ -4,11 +4,14 @@ import { requireUser } from "@/lib/auth/session";
 import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
 import { getRebalancingPlan } from "@/lib/portfolio/rebalancingService";
+import { getTodaySummary } from "@/lib/portfolio/todayMoversService";
+import { getDividendSnapshot } from "@/lib/dividends/dividendService";
 import { calculateAllocation } from "@/lib/finance/allocation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
 import { RebalancingCard, type RebalancingPlanData } from "@/components/dashboard/rebalancing-card";
 import { RefreshAllButton } from "@/components/dashboard/refresh-all-button";
+import { TodayCard } from "@/components/dashboard/today-card";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Money, Percent } from "@/components/ui/money";
@@ -30,15 +33,39 @@ export default async function DashboardPage() {
     );
   }
 
-  const [snapshot, rebalancingPlans] = await Promise.all([
+  const [snapshot, rebalancingPlans, todaySummary, dividendSnapshot] = await Promise.all([
     getPortfolioSnapshot(user.id, portfolio.id),
     Promise.all(
       REBALANCING_DIMENSIONS.map((dimension) =>
         getRebalancingPlan(user.id, portfolio.id, dimension)
       )
     ),
+    getTodaySummary(user.id, portfolio.id),
+    getDividendSnapshot(user.id, portfolio.id),
   ]);
   const { baseCurrency } = snapshot;
+
+  // Total return = price appreciation (realized + unrealized) plus every
+  // dividend ever received, all in the base currency — the one number a
+  // "did this investment actually pay off" question needs, instead of
+  // making the reader mentally add three separate KPI cards (and easy to
+  // forget the dividends piece, since it's not on this page at all
+  // otherwise).
+  let totalDividendsBase = new Decimal(0);
+  let dividendsHaveMissingFx = false;
+  for (const cashflow of dividendSnapshot.cashflows) {
+    if (cashflow.netAmountBase === null) {
+      dividendsHaveMissingFx = true;
+      continue;
+    }
+    totalDividendsBase = totalDividendsBase.plus(cashflow.netAmountBase);
+  }
+  const totalReturn = snapshot.totalUnrealizedPnL.plus(snapshot.totalRealizedPnL).plus(totalDividendsBase);
+  const totalReturnPercent =
+    !snapshot.totalCostBasis.isZero() && snapshot.totalCostBasis.isPositive()
+      ? totalReturn.dividedBy(snapshot.totalCostBasis)
+      : null;
+  const totalReturnHasMissingFx = snapshot.realizedPnLHasMissingFx || dividendsHaveMissingFx;
   const rebalancingPlanData: RebalancingPlanData[] = rebalancingPlans.map((plan) => ({
     dimension: plan.dimension as RebalancingPlanData["dimension"],
     totalValue: plan.totalValue.toString(),
@@ -95,7 +122,15 @@ export default async function DashboardPage() {
         <RefreshAllButton />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <TodayCard
+        totalChangeBase={todaySummary.totalChangeBase}
+        totalChangePercent={todaySummary.totalChangePercent}
+        movers={todaySummary.rows}
+        baseCurrency={baseCurrency}
+        hasData={todaySummary.hasData}
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label="Portfolio Value"
           value={<Money value={snapshot.totalValue.toString()} currency={baseCurrency} />}
@@ -104,6 +139,23 @@ export default async function DashboardPage() {
               ? "Incomplete — missing FX rate"
               : "Holdings + cash"
           }
+          highlight
+        />
+        <KpiCard
+          label="Total Return"
+          value={<Money value={totalReturn.toString()} currency={baseCurrency} signDisplay="always" />}
+          sublabel={
+            totalReturnHasMissingFx ? (
+              "Incomplete — missing FX rate"
+            ) : (
+              <>
+                {totalReturnPercent && <Percent value={totalReturnPercent.toString()} signDisplay="always" />}
+                {" · price P&L + "}
+                <Money value={totalDividendsBase.toString()} currency={baseCurrency} /> dividends
+              </>
+            )
+          }
+          tone={pnlTone(totalReturn)}
           highlight
         />
         <KpiCard
