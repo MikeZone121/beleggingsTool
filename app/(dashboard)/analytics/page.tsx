@@ -125,6 +125,8 @@ export default async function AnalyticsPage() {
             }
             tone="negative"
           />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <KpiCard
             label="Sharpe Ratio"
             value={volatility.sharpeRatio ? volatility.sharpeRatio.toFixed(2) : "—"}

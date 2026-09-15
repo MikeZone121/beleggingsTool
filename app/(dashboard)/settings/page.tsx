@@ -3,6 +3,10 @@ import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChangePasswordForm } from "@/components/settings/change-password-form";
 
+const ACCOUNTING_METHOD_LABEL: Record<string, string> = {
+  AVERAGE_COST: "Average Cost",
+};
+
 export default async function SettingsPage() {
   const user = await requireUser();
   const portfolio = await getDefaultPortfolio(user.id);
@@ -51,7 +55,11 @@ export default async function SettingsPage() {
           </div>
           <div>
             <div className="text-muted-foreground">Accounting method</div>
-            <div>{portfolio?.accountingMethod ?? "—"}</div>
+            <div>
+              {portfolio
+                ? (ACCOUNTING_METHOD_LABEL[portfolio.accountingMethod] ?? portfolio.accountingMethod)
+                : "—"}
+            </div>
           </div>
         </CardContent>
       </Card>

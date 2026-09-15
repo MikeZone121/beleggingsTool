@@ -14,6 +14,7 @@ import { RefreshAllButton } from "@/components/dashboard/refresh-all-button";
 import { TodayCard } from "@/components/dashboard/today-card";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Money, Percent } from "@/components/ui/money";
 import { pnlTone } from "@/lib/utils/format";
 import type { AllocationChartBucket } from "@/components/charts/allocation-bar";
@@ -209,35 +210,37 @@ export default async function DashboardPage() {
           baseCurrency={baseCurrency}
         />
 
-        <div className="rounded-xl bg-card text-card-foreground shadow-sm shadow-black/5 ring-1 ring-foreground/5">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-medium">Top Holdings</h2>
-          </div>
-          <div className="divide-y divide-border">
-            {snapshot.holdings
-              .slice()
-              .sort((a, b) =>
-                (b.marketValueBase ?? new Decimal(0)).comparedTo(a.marketValueBase ?? new Decimal(0))
-              )
-              .slice(0, 5)
-              .map((holding) => (
-                <div key={holding.securityId} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <div>
-                    <div className="font-medium">{holding.ticker}</div>
-                    <div className="text-muted-foreground">{holding.name}</div>
-                  </div>
-                  <div className="text-right tabular-nums">
+        <Card>
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-base">Top Holdings</CardTitle>
+          </CardHeader>
+          <CardContent className="px-0">
+            <div className="divide-y divide-border">
+              {snapshot.holdings
+                .slice()
+                .sort((a, b) =>
+                  (b.marketValueBase ?? new Decimal(0)).comparedTo(a.marketValueBase ?? new Decimal(0))
+                )
+                .slice(0, 5)
+                .map((holding) => (
+                  <div key={holding.securityId} className="flex items-center justify-between px-4 py-3 text-sm">
                     <div>
-                      <Money value={holding.marketValueBase?.toString()} currency={baseCurrency} />
+                      <div className="font-medium">{holding.ticker}</div>
+                      <div className="text-muted-foreground">{holding.name}</div>
                     </div>
-                    <div className="text-muted-foreground">
-                      <Money value={holding.marketValue?.toString()} currency={holding.currency} />
+                    <div className="text-right tabular-nums">
+                      <div>
+                        <Money value={holding.marketValueBase?.toString()} currency={baseCurrency} />
+                      </div>
+                      <div className="text-muted-foreground">
+                        <Money value={holding.marketValue?.toString()} currency={holding.currency} />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-          </div>
-        </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <RebalancingCard plans={rebalancingPlanData} baseCurrency={baseCurrency} />
