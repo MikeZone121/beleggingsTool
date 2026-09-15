@@ -21,7 +21,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -39,9 +38,13 @@ import { TRANSACTION_TYPES } from "@/lib/validation/transaction";
 
 type TxType = (typeof TRANSACTION_TYPES)[number];
 
-/** One icon per type, purely for faster visual scanning down a long list —
- * not a semantic "good/bad" judgment (that's what the Net Amount color is
- * for, via `CASH_IMPACT_SIGN`). */
+/** One icon per type, for faster visual scanning down a long list — this
+ * is what carries "what kind of row is this" (a bank-statement pattern:
+ * Revolut/N26/Wise all lead each row with a colored icon "avatar" rather
+ * than a text label). The *color* of that avatar is the separate,
+ * semantic "good/bad" signal, driven by `CASH_IMPACT_SIGN` below — so the
+ * two together read as "a dividend (icon) that paid me (green)" at a
+ * glance, without parsing the type name in each row. */
 const TYPE_ICON: Record<TxType, LucideIcon> = {
   BUY: ShoppingCart,
   SELL: TrendingDown,
@@ -55,6 +58,33 @@ const TYPE_ICON: Record<TxType, LucideIcon> = {
   SPLIT: GitBranch,
   OTHER: HelpCircle,
 };
+
+const TYPE_LABEL: Record<TxType, string> = {
+  BUY: "Buy",
+  SELL: "Sell",
+  DIVIDEND: "Dividend",
+  DEPOSIT: "Deposit",
+  WITHDRAWAL: "Withdrawal",
+  FEE: "Fee",
+  TAX: "Tax",
+  INTEREST: "Interest",
+  TRANSFER: "Transfer",
+  SPLIT: "Split",
+  OTHER: "Other",
+};
+
+/** Avatar background/icon tone per cash direction — same 1/-1/undefined
+ * split as `amountToneClass` below, so the icon and the amount always
+ * agree about which way a row moved cash. */
+const ICON_TONE: Record<"in" | "out" | "neutral", string> = {
+  in: "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400",
+  out: "bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400",
+  neutral: "bg-muted text-muted-foreground",
+};
+
+function iconTone(sign: 1 | -1 | undefined): string {
+  return sign === 1 ? ICON_TONE.in : sign === -1 ? ICON_TONE.out : ICON_TONE.neutral;
+}
 
 export interface TransactionRow {
   id: string;
@@ -160,7 +190,7 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
           <option value="ALL">All types</option>
           {TRANSACTION_TYPES.map((t) => (
             <option key={t} value={t}>
-              {t}
+              {TYPE_LABEL[t]}
             </option>
           ))}
         </select>
@@ -206,18 +236,24 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
               <TableRow key={tx.id}>
                 <TableCell className="whitespace-nowrap">{formatDate(tx.date)}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="gap-1">
-                    <Icon className="size-3" />
-                    {tx.type}
-                  </Badge>
-                  {tx.notes && (
+                  <div className="flex items-center gap-2.5">
                     <div
-                      className="mt-1 max-w-[240px] truncate text-xs text-muted-foreground"
-                      title={tx.notes}
+                      className={`flex size-8 shrink-0 items-center justify-center rounded-full ${iconTone(sign)}`}
                     >
-                      {tx.notes}
+                      <Icon className="size-4" />
                     </div>
-                  )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{TYPE_LABEL[tx.type]}</div>
+                      {tx.notes && (
+                        <div
+                          className="max-w-[220px] truncate text-xs text-muted-foreground"
+                          title={tx.notes}
+                        >
+                          {tx.notes}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </TableCell>
                 <TableCell>{tx.securityTicker ?? "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">
