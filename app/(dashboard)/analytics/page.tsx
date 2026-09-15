@@ -6,6 +6,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
 import { pnlTone } from "@/lib/utils/format";
 import { Money, Percent } from "@/components/ui/money";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BenchmarkCard } from "@/components/analytics/benchmark-card";
 import { SyncPriceHistoryButton } from "@/components/analytics/sync-price-history-button";
 
@@ -73,25 +74,35 @@ export default async function AnalyticsPage() {
       <BenchmarkCard
         initialTicker={benchmark.benchmarkTicker}
         initialPoints={benchmark.points}
+        currency={performance.baseCurrency}
       />
 
-      <div className="rounded-lg border p-4 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">Methodology</p>
-        <ul className="mt-2 list-disc space-y-1 pl-4">
-          <li>
-            <span className="text-foreground">XIRR</span> solves for the annualized rate that
-            discounts every deposit (negative), withdrawal (positive), and the current portfolio
-            value (a final positive cash flow) to zero — the same definition as Excel&apos;s XIRR.
-          </li>
-          <li>
-            <span className="text-foreground">Total return</span> compares the current value to
-            net cash actually contributed (deposits minus withdrawals) — it is not time-weighted,
-            since that requires a daily portfolio-value history this app doesn&apos;t yet compute
-            (a later phase, once historical prices are available).
-          </li>
-          <li>Time-weighted return (TWR) is not yet implemented for the same reason.</li>
-        </ul>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Methodology</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          <ul className="list-disc space-y-1 pl-4">
+            <li>
+              <span className="text-foreground">XIRR</span> solves for the annualized rate that
+              discounts every deposit (negative), withdrawal (positive), and the current
+              portfolio value (a final positive cash flow) to zero — the same definition as
+              Excel&apos;s XIRR.
+            </li>
+            <li>
+              <span className="text-foreground">Total return</span> compares the current value
+              to net cash actually contributed (deposits minus withdrawals) — it is not
+              time-weighted, so it doesn&apos;t correct for the timing of those contributions.
+            </li>
+            <li>
+              A reconstructed daily value history now exists (see the benchmark chart above), but
+              it isn&apos;t yet wired into a proper time-weighted return here — that would chain
+              sub-period returns between each cash flow rather than sample evenly, which this
+              KPI doesn&apos;t do.
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }
