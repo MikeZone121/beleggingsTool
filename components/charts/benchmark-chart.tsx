@@ -1,6 +1,6 @@
 "use client";
 
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
 import { formatCurrency } from "@/lib/utils/format";
 
@@ -93,6 +93,11 @@ export function BenchmarkChart({ data, benchmarkTicker, currency }: BenchmarkCha
           }}
           labelStyle={{ color: "var(--popover-foreground)" }}
           itemStyle={{ color: "var(--popover-foreground)" }}
+        />
+        <Legend
+          formatter={(value) => (value === "portfolioValueBase" ? "Portfolio" : benchmarkTicker)}
+          wrapperStyle={{ fontSize: 12, color: "var(--muted-foreground)" }}
+          iconType="plainline"
         />
         <Line
           type="monotone"

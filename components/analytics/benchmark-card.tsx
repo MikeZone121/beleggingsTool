@@ -37,7 +37,13 @@ export function BenchmarkCard({ initialTicker, initialPoints, currency }: Benchm
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
-        <CardTitle className="text-base">Portfolio vs. Benchmark</CardTitle>
+        <div>
+          <CardTitle className="text-base">Portfolio vs. Benchmark</CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">
+            If you&apos;d put your first sampled amount into {ticker} on that date instead of
+            your actual portfolio, would you be ahead or behind today?
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary">{loading ? "Loading…" : ticker}</Badge>
           <TickerSearchField placeholder="Compare to…" onSelect={handleSelect} />
@@ -46,8 +52,7 @@ export function BenchmarkCard({ initialTicker, initialPoints, currency }: Benchm
       <CardContent>
         <BenchmarkChart data={points} benchmarkTicker={ticker} currency={currency} />
         <p className="mt-3 text-xs text-muted-foreground">
-          Both lines show what your first sampled amount would be worth today — one as your
-          actual portfolio, one as if it had gone into {ticker} instead. Portfolio growth is{" "}
+          Portfolio growth is total value change since your first sampled date —{" "}
           <span className="font-medium text-foreground">not</span> adjusted for deposits or
           withdrawals during the period, so a large deposit will show up here as apparent gain.
           Needs price history synced (see the button above) to be accurate.

@@ -2,9 +2,13 @@ import { requireUser } from "@/lib/auth/session";
 import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { getPerformanceSnapshot } from "@/lib/performance/performanceService";
 import { getBenchmarkComparison } from "@/lib/performance/benchmarkService";
+import { getPortfolioValueHistory } from "@/lib/performance/portfolioValueHistoryService";
+import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
+import { calculateDrawdown } from "@/lib/finance/drawdown";
+import { calculateHoldingsInsights } from "@/lib/finance/holdingsInsights";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
-import { pnlTone } from "@/lib/utils/format";
+import { formatDate, pnlTone } from "@/lib/utils/format";
 import { Money, Percent } from "@/components/ui/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BenchmarkCard } from "@/components/analytics/benchmark-card";
@@ -22,10 +26,15 @@ export default async function AnalyticsPage() {
     return <EmptyState title="No portfolio yet" description="No default portfolio was found." />;
   }
 
-  const [performance, benchmark] = await Promise.all([
+  const [performance, benchmark, valueHistory, snapshot] = await Promise.all([
     getPerformanceSnapshot(user.id, portfolio.id),
     getBenchmarkComparison(user.id, portfolio.id, DEFAULT_BENCHMARK_TICKER),
+    getPortfolioValueHistory(user.id, portfolio.id),
+    getPortfolioSnapshot(user.id, portfolio.id),
   ]);
+
+  const drawdown = calculateDrawdown(valueHistory);
+  const holdingsInsights = calculateHoldingsInsights(snapshot.holdings);
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,6 +80,51 @@ export default async function AnalyticsPage() {
         />
       </div>
 
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">Risk &amp; Concentration</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Max Drawdown"
+            value={<Percent value={drawdown.maxDrawdown.toString()} />}
+            sublabel={
+              drawdown.maxDrawdownDate
+                ? `Worst point: ${formatDate(drawdown.maxDrawdownDate)}`
+                : "No decline from a peak yet"
+            }
+            tone={drawdown.maxDrawdown.isZero() ? undefined : "negative"}
+          />
+          <KpiCard
+            label="Top 3 Concentration"
+            value={<Percent value={holdingsInsights.topConcentration.toString()} />}
+            sublabel="Share of value in your 3 largest positions"
+          />
+          <KpiCard
+            label="Best Holding"
+            value={holdingsInsights.best ? holdingsInsights.best.ticker : "—"}
+            sublabel={
+              holdingsInsights.best?.unrealizedPnLPercent ? (
+                <Percent value={holdingsInsights.best.unrealizedPnLPercent.toString()} signDisplay="always" />
+              ) : (
+                "No holdings with a computable return"
+              )
+            }
+            tone="positive"
+          />
+          <KpiCard
+            label="Worst Holding"
+            value={holdingsInsights.worst ? holdingsInsights.worst.ticker : "—"}
+            sublabel={
+              holdingsInsights.worst?.unrealizedPnLPercent ? (
+                <Percent value={holdingsInsights.worst.unrealizedPnLPercent.toString()} signDisplay="always" />
+              ) : (
+                "No holdings with a computable return"
+              )
+            }
+            tone="negative"
+          />
+        </div>
+      </div>
+
       <BenchmarkCard
         initialTicker={benchmark.benchmarkTicker}
         initialPoints={benchmark.points}
@@ -99,6 +153,17 @@ export default async function AnalyticsPage() {
               it isn&apos;t yet wired into a proper time-weighted return here — that would chain
               sub-period returns between each cash flow rather than sample evenly, which this
               KPI doesn&apos;t do.
+            </li>
+            <li>
+              <span className="text-foreground">Max drawdown</span> is the largest peak-to-trough
+              decline in that same reconstructed value history — the worst-case
+              &ldquo;if you&apos;d bought at the top and sold at the bottom&rdquo; so far.
+            </li>
+            <li>
+              <span className="text-foreground">Best/worst holding</span> and{" "}
+              <span className="text-foreground">concentration</span> use each holding&apos;s
+              current unrealized return and market value — a live snapshot, not a historical
+              series.
             </li>
           </ul>
         </CardContent>
