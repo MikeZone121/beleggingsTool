@@ -6,6 +6,7 @@ import { getPortfolioValueHistory } from "@/lib/performance/portfolioValueHistor
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
 import { calculateDrawdown } from "@/lib/finance/drawdown";
 import { calculateHoldingsInsights } from "@/lib/finance/holdingsInsights";
+import { calculateVolatilityMetrics, calculateBeta } from "@/lib/finance/riskMetrics";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
 import { formatDate, pnlTone } from "@/lib/utils/format";
@@ -35,6 +36,8 @@ export default async function AnalyticsPage() {
 
   const drawdown = calculateDrawdown(valueHistory);
   const holdingsInsights = calculateHoldingsInsights(snapshot.holdings);
+  const volatility = calculateVolatilityMetrics(valueHistory);
+  const beta = calculateBeta(benchmark.points);
 
   return (
     <div className="flex flex-col gap-6">
@@ -122,6 +125,35 @@ export default async function AnalyticsPage() {
             }
             tone="negative"
           />
+          <KpiCard
+            label="Sharpe Ratio"
+            value={volatility.sharpeRatio ? volatility.sharpeRatio.toFixed(2) : "—"}
+            sublabel="Annualized, assumes 0% risk-free rate"
+            tone={
+              volatility.sharpeRatio
+                ? volatility.sharpeRatio.greaterThanOrEqualTo(0)
+                  ? "positive"
+                  : "negative"
+                : undefined
+            }
+          />
+          <KpiCard
+            label="Sortino Ratio"
+            value={volatility.sortinoRatio ? volatility.sortinoRatio.toFixed(2) : "—"}
+            sublabel="Like Sharpe, but only penalizes downside moves"
+            tone={
+              volatility.sortinoRatio
+                ? volatility.sortinoRatio.greaterThanOrEqualTo(0)
+                  ? "positive"
+                  : "negative"
+                : undefined
+            }
+          />
+          <KpiCard
+            label="Beta"
+            value={beta ? beta.toFixed(2) : "—"}
+            sublabel={`vs. ${benchmark.benchmarkTicker} — 1.00 = moves with the market`}
+          />
         </div>
       </div>
 
@@ -165,6 +197,18 @@ export default async function AnalyticsPage() {
               <span className="text-foreground">concentration</span> use each holding&apos;s
               current unrealized return and market value — a live snapshot, not a historical
               series.
+            </li>
+            <li>
+              <span className="text-foreground">Sharpe</span> and{" "}
+              <span className="text-foreground">Sortino ratio</span> are annualized from that same
+              reconstructed value history, assuming a 0% risk-free rate (this app has no bond-yield
+              data source, so that&apos;s the honest simplification rather than a hardcoded number
+              that goes stale). Sortino only penalizes downside moves; Sharpe penalizes all of it.
+            </li>
+            <li>
+              <span className="text-foreground">Beta</span> is against the benchmark chart&apos;s
+              default ticker specifically — switching the ticker in the chart above doesn&apos;t
+              recompute it.
             </li>
           </ul>
         </CardContent>
