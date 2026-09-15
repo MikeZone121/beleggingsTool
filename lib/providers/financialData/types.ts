@@ -68,3 +68,21 @@ export interface FinancialDataProvider {
   ): Promise<ProviderPricePoint[]>;
   getDividends(ticker: string, exchange?: string | null): Promise<ProviderDividendEvent[]>;
 }
+
+export interface NewsHeadline {
+  title: string;
+  publisher: string;
+  publishedAt: Date;
+  url: string;
+}
+
+/**
+ * An optional capability, not part of `FinancialDataProvider` itself:
+ * headlines are inherently vendor-shaped (Twelve Data has no equivalent
+ * free endpoint), so callers must runtime-check for this rather than
+ * assume every provider has it — see `isNewsCapable` in
+ * `lib/insights/newsInsightsService.ts`.
+ */
+export interface NewsCapableProvider {
+  getNews(query: string, limit?: number): Promise<NewsHeadline[]>;
+}

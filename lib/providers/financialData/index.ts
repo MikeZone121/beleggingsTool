@@ -3,7 +3,15 @@ import { ManualProvider } from "./manualProvider";
 import { TwelveDataProvider } from "./twelveData";
 import { YahooFinanceProvider } from "./yahooFinance";
 
-export type { FinancialDataProvider, ProviderQuote, ProviderPricePoint, ProviderDividendEvent, ProviderSecurityMatch } from "./types";
+export type {
+  FinancialDataProvider,
+  ProviderQuote,
+  ProviderPricePoint,
+  ProviderDividendEvent,
+  ProviderSecurityMatch,
+  NewsHeadline,
+  NewsCapableProvider,
+} from "./types";
 export { ProviderError } from "./types";
 
 let cached: FinancialDataProvider | null = null;

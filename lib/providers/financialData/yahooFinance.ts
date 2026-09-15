@@ -1,6 +1,8 @@
 import Decimal from "decimal.js";
 import type {
   FinancialDataProvider,
+  NewsCapableProvider,
+  NewsHeadline,
   ProviderQuote,
   ProviderPricePoint,
   ProviderDividendEvent,
@@ -51,6 +53,12 @@ interface SearchResponse {
     exchange?: string;
     quoteType?: string;
   }>;
+  news?: Array<{
+    title: string;
+    publisher: string;
+    link: string;
+    providerPublishTime: number;
+  }>;
 }
 
 /**
@@ -67,7 +75,7 @@ interface SearchResponse {
  * compatibility but unused — callers should pass the full Yahoo symbol as
  * returned by `searchSecurities`.
  */
-export class YahooFinanceProvider implements FinancialDataProvider {
+export class YahooFinanceProvider implements FinancialDataProvider, NewsCapableProvider {
   readonly name = "yahoo";
 
   private async request<T>(url: URL): Promise<T> {
@@ -217,5 +225,21 @@ export class YahooFinanceProvider implements FinancialDataProvider {
         country: null,
         assetType: q.quoteType ?? null,
       }));
+  }
+
+  async getNews(query: string, limit = 5): Promise<NewsHeadline[]> {
+    const url = new URL(SEARCH_BASE_URL);
+    url.searchParams.set("q", query);
+    url.searchParams.set("quotesCount", "0");
+    url.searchParams.set("newsCount", limit.toString());
+
+    const data = await this.requestWithRetry<SearchResponse>(url);
+
+    return (data.news ?? []).map((n) => ({
+      title: n.title,
+      publisher: n.publisher,
+      publishedAt: new Date(n.providerPublishTime * 1000),
+      url: n.link,
+    }));
   }
 }
