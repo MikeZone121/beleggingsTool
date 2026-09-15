@@ -104,25 +104,6 @@ export function HoldingsTable({ holdings, cash, baseCurrency }: HoldingsTablePro
           </TableRow>
         </TableHeader>
         <TableBody>
-          {cash && (
-            <TableRow>
-              <TableCell>
-                <div className="font-medium">Cash</div>
-                <div className="text-xs text-muted-foreground">{cash.baseCurrency} balance</div>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">—</TableCell>
-              <TableCell className="text-right tabular-nums">—</TableCell>
-              <TableCell className="text-right tabular-nums">—</TableCell>
-              <TableCell className="text-right tabular-nums">
-                <Money value={cash.balanceBase} currency={cash.baseCurrency} />
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {cash.weight ? <Percent value={cash.weight} /> : "—"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">—</TableCell>
-              <TableCell className="text-right tabular-nums">—</TableCell>
-            </TableRow>
-          )}
           {filtered.length === 0 && !cash && (
             <TableRow>
               <TableCell colSpan={8} className="py-6 text-center text-sm text-muted-foreground">
@@ -189,6 +170,30 @@ export function HoldingsTable({ holdings, cash, baseCurrency }: HoldingsTablePro
               </TableCell>
             </TableRow>
           ))}
+          {/* Cash isn't a security — it has no quantity, price, or P&L — so
+           * it goes last rather than sorted in among holdings by value,
+           * matching how brokerage statements (Schwab, DEGIRO, IBKR) list
+           * it as its own trailing line rather than a position. A muted
+           * background keeps that distinction visible at a glance. */}
+          {cash && (
+            <TableRow className="bg-muted/40">
+              <TableCell>
+                <div className="font-medium">Cash</div>
+                <div className="text-xs text-muted-foreground">{cash.baseCurrency} balance</div>
+              </TableCell>
+              <TableCell className="text-right tabular-nums">—</TableCell>
+              <TableCell className="text-right tabular-nums">—</TableCell>
+              <TableCell className="text-right tabular-nums">—</TableCell>
+              <TableCell className="text-right tabular-nums">
+                <Money value={cash.balanceBase} currency={cash.baseCurrency} />
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {cash.weight ? <Percent value={cash.weight} /> : "—"}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">—</TableCell>
+              <TableCell className="text-right tabular-nums">—</TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>

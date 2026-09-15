@@ -6,6 +6,8 @@ import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
 import { getPreviousClosePrices } from "@/lib/db/prices";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
+import { Money, Percent } from "@/components/ui/money";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 import { pnlTone } from "@/lib/utils/format";
 import { RefreshPricesButton } from "@/components/securities/refresh-prices-button";
 import { HoldingsTable, type HoldingRow, type CashRowData } from "@/components/portfolio/holdings-table";
@@ -82,14 +84,24 @@ export default async function PortfolioPage() {
     };
   });
 
+  const cashWeight = snapshot.totalValue.greaterThan(0)
+    ? snapshot.cashBalance.balanceBase.dividedBy(snapshot.totalValue)
+    : null;
   const cashRow: CashRowData | null = hasCash
     ? {
         baseCurrency,
         balanceBase: snapshot.cashBalance.balanceBase.toString(),
-        weight: snapshot.totalValue.greaterThan(0)
-          ? snapshot.cashBalance.balanceBase.dividedBy(snapshot.totalValue).toString()
-          : null,
+        weight: cashWeight?.toString() ?? null,
       }
+    : null;
+
+  // Holdings' combined market value and weight — cash's counterpart below,
+  // so "how much of my money is invested vs. sitting as cash" is visible
+  // before scanning the table at all, not something you have to add up
+  // from individual rows.
+  const holdingsValueBase = snapshot.totalValue.minus(snapshot.cashBalance.balanceBase);
+  const holdingsWeight = snapshot.totalValue.greaterThan(0)
+    ? holdingsValueBase.dividedBy(snapshot.totalValue)
     : null;
 
   return (
@@ -103,6 +115,37 @@ export default async function PortfolioPage() {
           </p>
         </div>
         <RefreshPricesButton />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <KpiCard
+          label="Total Value"
+          value={<Money value={snapshot.totalValue.toString()} currency={baseCurrency} />}
+          sublabel="Holdings + cash"
+          highlight
+        />
+        <KpiCard
+          label="Invested"
+          value={<Money value={holdingsValueBase.toString()} currency={baseCurrency} />}
+          sublabel={
+            holdingsWeight ? (
+              <>
+                <Percent value={holdingsWeight.toString()} /> of total
+              </>
+            ) : undefined
+          }
+        />
+        <KpiCard
+          label="Cash"
+          value={<Money value={snapshot.cashBalance.balanceBase.toString()} currency={baseCurrency} />}
+          sublabel={
+            cashWeight ? (
+              <>
+                <Percent value={cashWeight.toString()} /> of total
+              </>
+            ) : undefined
+          }
+        />
       </div>
 
       <HoldingsTable holdings={holdingRows} cash={cashRow} baseCurrency={baseCurrency} />
