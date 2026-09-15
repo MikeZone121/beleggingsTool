@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -49,6 +50,21 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<EditableTransaction | null>(null);
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return transactions.filter((tx) => {
+      if (typeFilter !== "ALL" && tx.type !== typeFilter) return false;
+      if (q === "") return true;
+      return (
+        (tx.securityTicker?.toLowerCase().includes(q) ?? false) ||
+        (tx.securityName?.toLowerCase().includes(q) ?? false) ||
+        tx.notes.toLowerCase().includes(q)
+      );
+    });
+  }, [transactions, query, typeFilter]);
 
   function handleEdit(tx: TransactionRow) {
     setEditing({
@@ -90,6 +106,34 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
 
   return (
     <>
+      <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="h-8 w-56 pl-7"
+            placeholder="Search by ticker, name, or note…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <select
+          className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+        >
+          <option value="ALL">All types</option>
+          {TRANSACTION_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        {(query || typeFilter !== "ALL") && (
+          <span className="text-xs text-muted-foreground">
+            {filtered.length} of {transactions.length}
+          </span>
+        )}
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
@@ -103,7 +147,14 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
           </TableRow>
         </TableHeader>
         <TableBody>
-          {transactions.map((tx) => (
+          {filtered.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
+                No transactions match your filters.
+              </TableCell>
+            </TableRow>
+          )}
+          {filtered.map((tx) => (
             <TableRow key={tx.id}>
               <TableCell className="whitespace-nowrap">{formatDate(tx.date)}</TableCell>
               <TableCell>

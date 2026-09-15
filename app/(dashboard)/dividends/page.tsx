@@ -6,7 +6,6 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
 import { MonthlyIncomeChart } from "@/components/charts/monthly-income-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -15,10 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate } from "@/lib/utils/format";
 import { Money, Percent } from "@/components/ui/money";
 import { DividendCalendar } from "@/components/dividends/dividend-calendar";
 import { SyncDividendsButton } from "@/components/dividends/sync-dividends-button";
+import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/dividends/payment-history-table";
 
 const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -85,6 +84,20 @@ export default async function DividendsPage() {
   }));
 
   const latestGrowth = snapshot.portfolioGrowth.yoyGrowth.at(-1) ?? null;
+
+  const paymentHistoryRows: PaymentHistoryRow[] = snapshot.cashflows
+    .slice()
+    .reverse()
+    .map((cf) => ({
+      transactionId: cf.transactionId,
+      date: cf.date.toISOString(),
+      ticker: tickerBySecurityId.get(cf.securityId) ?? cf.securityId,
+      currency: cf.currency,
+      grossAmount: cf.grossAmount.toString(),
+      taxes: cf.taxes.toString(),
+      netAmount: cf.netAmount.toString(),
+      missingFx: cf.netAmountBase === null,
+    }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -187,44 +200,7 @@ export default async function DividendsPage() {
 
       <div className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">Payment History</h2>
-        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Security</TableHead>
-                <TableHead className="text-right">Gross</TableHead>
-                <TableHead className="text-right">Tax</TableHead>
-                <TableHead className="text-right">Net</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {snapshot.cashflows
-                .slice()
-                .reverse()
-                .map((cf) => (
-                  <TableRow key={cf.transactionId}>
-                    <TableCell>{formatDate(cf.date)}</TableCell>
-                    <TableCell>{tickerBySecurityId.get(cf.securityId) ?? cf.securityId}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <Money value={cf.grossAmount.toString()} currency={cf.currency} />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <Money value={cf.taxes.toString()} currency={cf.currency} />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <Money value={cf.netAmount.toString()} currency={cf.currency} />
-                      {cf.netAmountBase === null && (
-                        <Badge variant="secondary" className="ml-2">
-                          no FX
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </div>
+        <PaymentHistoryTable rows={paymentHistoryRows} />
       </div>
     </div>
   );

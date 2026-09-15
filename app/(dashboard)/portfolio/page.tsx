@@ -5,19 +5,9 @@ import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { pnlTone } from "@/lib/utils/format";
-import { Money, Percent, Quantity } from "@/components/ui/money";
-import { EditPricePopover } from "@/components/securities/edit-price-popover";
 import { RefreshPricesButton } from "@/components/securities/refresh-prices-button";
+import { HoldingsTable, type HoldingRow, type CashRowData } from "@/components/portfolio/holdings-table";
 
 export default async function PortfolioPage() {
   const user = await requireUser();
@@ -51,6 +41,44 @@ export default async function PortfolioPage() {
       (b.marketValueBase ?? new Decimal(0)).comparedTo(a.marketValueBase ?? new Decimal(0))
     );
 
+  const holdingRows: HoldingRow[] = holdings.map((holding) => {
+    const weight = snapshot.totalValue.greaterThan(0)
+      ? (holding.marketValueBase ?? new Decimal(0)).dividedBy(snapshot.totalValue)
+      : null;
+    const returnPercent =
+      holding.costBasis.greaterThan(0) && holding.unrealizedPnL
+        ? holding.unrealizedPnL.dividedBy(holding.costBasis)
+        : null;
+
+    return {
+      securityId: holding.securityId,
+      ticker: holding.ticker,
+      name: holding.name,
+      currency: holding.currency,
+      quantity: holding.quantity.toString(),
+      averageCost: holding.averageCost.toString(),
+      currentPrice: holding.marketValue
+        ? holding.marketValue.dividedBy(holding.quantity).toString()
+        : null,
+      priceStale: holding.priceStale,
+      marketValueBase: holding.marketValueBase?.toString() ?? null,
+      weight: weight?.toString() ?? null,
+      unrealizedPnLBase: holding.unrealizedPnLBase?.toString() ?? null,
+      returnPercent: returnPercent?.toString() ?? null,
+      tone: pnlTone(holding.unrealizedPnL),
+    };
+  });
+
+  const cashRow: CashRowData | null = hasCash
+    ? {
+        baseCurrency,
+        balanceBase: snapshot.cashBalance.balanceBase.toString(),
+        weight: snapshot.totalValue.greaterThan(0)
+          ? snapshot.cashBalance.balanceBase.dividedBy(snapshot.totalValue).toString()
+          : null,
+      }
+    : null;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -64,125 +92,7 @@ export default async function PortfolioPage() {
         <RefreshPricesButton />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Security</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
-              <TableHead className="text-right">Avg. Cost</TableHead>
-              <TableHead className="text-right">Current Price</TableHead>
-              <TableHead className="text-right">Market Value</TableHead>
-              <TableHead className="text-right">Weight</TableHead>
-              <TableHead className="text-right">Unrealized P&L</TableHead>
-              <TableHead className="text-right">Return %</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {hasCash && (
-              <TableRow>
-                <TableCell>
-                  <div className="font-medium">Cash</div>
-                  <div className="text-xs text-muted-foreground">{baseCurrency} balance</div>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">—</TableCell>
-                <TableCell className="text-right tabular-nums">—</TableCell>
-                <TableCell className="text-right tabular-nums">—</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  <Money value={snapshot.cashBalance.balanceBase.toString()} currency={baseCurrency} />
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {snapshot.totalValue.greaterThan(0) ? (
-                    <Percent
-                      value={snapshot.cashBalance.balanceBase.dividedBy(snapshot.totalValue).toString()}
-                    />
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">—</TableCell>
-                <TableCell className="text-right tabular-nums">—</TableCell>
-              </TableRow>
-            )}
-            {holdings.map((holding) => {
-              const weight = snapshot.totalValue.greaterThan(0)
-                ? (holding.marketValueBase ?? new Decimal(0)).dividedBy(snapshot.totalValue)
-                : null;
-              const returnPercent =
-                holding.costBasis.greaterThan(0) && holding.unrealizedPnL
-                  ? holding.unrealizedPnL.dividedBy(holding.costBasis)
-                  : null;
-              const tone = pnlTone(holding.unrealizedPnL);
-              const pnlToneClass =
-                tone === "positive"
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : tone === "negative"
-                    ? "text-red-600 dark:text-red-400"
-                    : "";
-
-              return (
-                <TableRow key={holding.securityId}>
-                  <TableCell>
-                    <div className="font-medium">{holding.ticker}</div>
-                    <div className="text-xs text-muted-foreground">{holding.name}</div>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <Quantity value={holding.quantity.toString()} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <Money value={holding.averageCost.toString()} currency={holding.currency} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <div className="flex items-center justify-end gap-1">
-                      {holding.marketValue ? (
-                        <Money
-                          value={holding.marketValue.dividedBy(holding.quantity).toString()}
-                          currency={holding.currency}
-                        />
-                      ) : (
-                        <Badge variant="secondary">no price</Badge>
-                      )}
-                      {holding.priceStale && holding.marketValue && (
-                        <Badge variant="secondary">stale</Badge>
-                      )}
-                      <EditPricePopover
-                        securityId={holding.securityId}
-                        ticker={holding.ticker}
-                        currency={holding.currency}
-                        currentPrice={
-                          holding.marketValue
-                            ? holding.marketValue.dividedBy(holding.quantity).toString()
-                            : null
-                        }
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <Money value={holding.marketValueBase?.toString()} currency={baseCurrency} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {weight ? <Percent value={weight.toString()} /> : "—"}
-                  </TableCell>
-                  <TableCell className={`text-right tabular-nums ${pnlToneClass}`}>
-                    <Money
-                      value={holding.unrealizedPnLBase?.toString()}
-                      currency={baseCurrency}
-                      signDisplay="always"
-                    />
-                  </TableCell>
-                  <TableCell className={`text-right tabular-nums ${pnlToneClass}`}>
-                    {returnPercent ? (
-                      <Percent value={returnPercent.toString()} signDisplay="always" />
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      <HoldingsTable holdings={holdingRows} cash={cashRow} baseCurrency={baseCurrency} />
     </div>
   );
 }
