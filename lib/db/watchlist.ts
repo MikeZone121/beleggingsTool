@@ -19,3 +19,15 @@ export async function addToWatchlist(userId: string, securityId: string, notes?:
 export async function removeFromWatchlist(userId: string, id: string) {
   return prisma.watchlistItem.deleteMany({ where: { id, userId } });
 }
+
+/** `targetPrice: null` clears the alert. */
+export async function setWatchlistTargetPrice(
+  userId: string,
+  id: string,
+  targetPrice: string | null
+) {
+  return prisma.watchlistItem.updateMany({
+    where: { id, userId },
+    data: { targetPrice },
+  });
+}

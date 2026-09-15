@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Money, Percent } from "@/components/ui/money";
+import { EditTargetPricePopover } from "./edit-target-price-popover";
 import type { WatchlistRow } from "@/lib/portfolio/watchlistService";
 
 interface WatchlistTableProps {
@@ -73,13 +74,14 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
             <TableHead>Security</TableHead>
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-right">Today</TableHead>
+            <TableHead className="text-right">Target</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {filtered.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="py-6 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
                 {items.length === 0
                   ? "Nothing on your watchlist yet — add a ticker to start tracking it."
                   : "No matches."}
@@ -87,7 +89,10 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
             </TableRow>
           )}
           {filtered.map((item) => (
-            <TableRow key={item.id}>
+            <TableRow
+              key={item.id}
+              className={item.targetReached ? "bg-emerald-500/10 hover:bg-emerald-500/15" : undefined}
+            >
               <TableCell>
                 <div className="font-medium">{item.ticker}</div>
                 <div className="text-xs text-muted-foreground">{item.name}</div>
@@ -108,6 +113,26 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
                 ) : (
                   "—"
                 )}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                <div className="flex items-center justify-end gap-1.5">
+                  {item.targetReached && (
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                      Target reached
+                    </Badge>
+                  )}
+                  {item.targetPrice ? (
+                    <Money value={item.targetPrice} currency={item.currency} />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                  <EditTargetPricePopover
+                    id={item.id}
+                    ticker={item.ticker}
+                    currency={item.currency}
+                    targetPrice={item.targetPrice}
+                  />
+                </div>
               </TableCell>
               <TableCell>
                 <Button

@@ -13,6 +13,10 @@ export interface WatchlistRow {
   priceStale: boolean;
   dayChangePercent: string | null;
   notes: string | null;
+  targetPrice: string | null;
+  /** True once `currentPrice` is at or below `targetPrice` — purely
+   * visual, no email/push (see WatchlistItem.targetPrice in schema.prisma). */
+  targetReached: boolean;
 }
 
 /**
@@ -42,6 +46,10 @@ export async function getWatchlistSnapshot(userId: string): Promise<WatchlistRow
     const priceStale = currentPrice
       ? new Date().getTime() - currentPrice.asOf.getTime() > 24 * 60 * 60 * 1000
       : false;
+    const targetPrice = item.targetPrice ? new Decimal(item.targetPrice.toString()) : null;
+    const targetReached = Boolean(
+      currentPrice && targetPrice && currentPrice.price.lessThanOrEqualTo(targetPrice)
+    );
 
     return {
       id: item.id,
@@ -53,6 +61,8 @@ export async function getWatchlistSnapshot(userId: string): Promise<WatchlistRow
       priceStale,
       dayChangePercent: dayChangePercent?.toString() ?? null,
       notes: item.notes,
+      targetPrice: targetPrice?.toString() ?? null,
+      targetReached,
     };
   });
 }
