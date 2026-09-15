@@ -1,6 +1,34 @@
 import { prisma } from "./client";
 import type { TransactionInput } from "@/lib/validation/transaction";
 
+/** Every distinct transaction currency across every portfolio — a
+ * DEPOSIT/WITHDRAWAL/FEE/etc. can be denominated in a foreign currency
+ * directly, with no security involved, so this covers pairs that scanning
+ * `Security.currency` alone would miss. Unscoped by user, like
+ * `listSecurities` — feeds the background FX-rate refresh/backfill. */
+export async function listDistinctTransactionCurrencies(): Promise<string[]> {
+  const rows = await prisma.transaction.findMany({
+    distinct: ["currency"],
+    select: { currency: true },
+  });
+  return rows.map((r) => r.currency);
+}
+
+/** Earliest transaction date recorded in a given currency, across every
+ * portfolio — like `listSecurities`, intentionally unscoped by user: it
+ * feeds the background FX-rate backfill (see
+ * `lib/portfolio/fxRefreshService.ts`), which needs to know how far back a
+ * currency pair's rate history must reach to cover every existing
+ * transaction, not just one user's. */
+export async function getEarliestTransactionDate(currency: string): Promise<Date | null> {
+  const row = await prisma.transaction.findFirst({
+    where: { currency },
+    orderBy: { date: "asc" },
+    select: { date: true },
+  });
+  return row?.date ?? null;
+}
+
 /** All transactions for every account in a user's portfolio. */
 export async function listTransactionsForPortfolio(userId: string, portfolioId: string) {
   return prisma.transaction.findMany({

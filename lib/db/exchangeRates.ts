@@ -5,6 +5,21 @@ export async function listExchangeRates() {
   return prisma.exchangeRate.findMany({ orderBy: { date: "asc" } });
 }
 
+/** Earliest date this pair has a rate for, or null if it has none yet —
+ * used to decide whether a historical backfill is needed before trusting
+ * `findFxRate`'s nearest-prior-date lookup for old transactions. */
+export async function getEarliestExchangeRateDate(
+  baseCurrency: string,
+  quoteCurrency: string
+): Promise<Date | null> {
+  const row = await prisma.exchangeRate.findFirst({
+    where: { baseCurrency, quoteCurrency },
+    orderBy: { date: "asc" },
+    select: { date: true },
+  });
+  return row?.date ?? null;
+}
+
 export async function upsertExchangeRate(data: {
   baseCurrency: string;
   quoteCurrency: string;
