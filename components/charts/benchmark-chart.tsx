@@ -2,9 +2,12 @@
 
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
+import { formatCurrency } from "@/lib/utils/format";
 
 export interface BenchmarkChartPoint {
   date: string;
+  portfolioValueBase: number;
+  benchmarkValueBase: number | null;
   portfolioReturn: number;
   benchmarkReturn: number | null;
 }
@@ -12,6 +15,7 @@ export interface BenchmarkChartPoint {
 interface BenchmarkChartProps {
   data: BenchmarkChartPoint[];
   benchmarkTicker: string;
+  currency: string;
 }
 
 function formatPercent(value: number): string {
@@ -19,11 +23,13 @@ function formatPercent(value: number): string {
 }
 
 /**
- * Two comparable time series — cumulative % return, not two different
- * value scales — so a line chart with a shared axis, not two bar series
- * (see the dataviz skill's form guidance for "comparison over time").
+ * Both lines are the same starting amount's value over time — the
+ * portfolio's actual value, and what that same amount would be worth had
+ * it gone into the benchmark ticker instead — so a currency axis is more
+ * concrete than an abstract % axis. The tooltip still shows % alongside
+ * the value for readers who want the relative comparison too.
  */
-export function BenchmarkChart({ data, benchmarkTicker }: BenchmarkChartProps) {
+export function BenchmarkChart({ data, benchmarkTicker, currency }: BenchmarkChartProps) {
   const { hidden } = usePrivacyMode();
 
   if (data.length === 0) {
@@ -43,6 +49,13 @@ export function BenchmarkChart({ data, benchmarkTicker }: BenchmarkChartProps) {
     );
   }
 
+  const returnByKey = new Map(
+    data.flatMap((p) => [
+      [`${p.date}:portfolio`, p.portfolioReturn],
+      [`${p.date}:benchmark`, p.benchmarkReturn],
+    ])
+  );
+
   return (
     <ResponsiveContainer width="100%" height={260}>
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
@@ -58,14 +71,19 @@ export function BenchmarkChart({ data, benchmarkTicker }: BenchmarkChartProps) {
           tickLine={false}
           axisLine={false}
           tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-          tickFormatter={(value) => formatPercent(Number(value))}
-          width={56}
+          tickFormatter={(value) => formatCurrency(Number(value), currency)}
+          width={72}
         />
         <Tooltip
-          formatter={(value, name) => [
-            value === null ? "—" : formatPercent(Number(value)),
-            name === "portfolioReturn" ? "Portfolio" : benchmarkTicker,
-          ]}
+          formatter={(value, name, item) => {
+            if (value === null || value === undefined) return ["—", name];
+            const isPortfolio = name === "portfolioValueBase";
+            const returnValue = returnByKey.get(`${item.payload.date}:${isPortfolio ? "portfolio" : "benchmark"}`);
+            const valueLabel = formatCurrency(Number(value), currency);
+            const withReturn =
+              typeof returnValue === "number" ? `${valueLabel} (${formatPercent(returnValue)})` : valueLabel;
+            return [withReturn, isPortfolio ? "Portfolio" : benchmarkTicker];
+          }}
           contentStyle={{
             fontSize: 12,
             borderRadius: 8,
@@ -78,16 +96,16 @@ export function BenchmarkChart({ data, benchmarkTicker }: BenchmarkChartProps) {
         />
         <Line
           type="monotone"
-          dataKey="portfolioReturn"
-          name="portfolioReturn"
+          dataKey="portfolioValueBase"
+          name="portfolioValueBase"
           stroke="var(--chart-1)"
           strokeWidth={2}
           dot={false}
         />
         <Line
           type="monotone"
-          dataKey="benchmarkReturn"
-          name="benchmarkReturn"
+          dataKey="benchmarkValueBase"
+          name="benchmarkValueBase"
           stroke="var(--chart-2)"
           strokeWidth={2}
           dot={false}

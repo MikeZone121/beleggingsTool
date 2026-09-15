@@ -4,10 +4,20 @@ import { getFinancialDataProvider } from "@/lib/providers/financialData";
 
 export interface BenchmarkComparisonPoint {
   date: string;
+  /** Actual reconstructed portfolio value in the base currency. NOT a
+   * time-weighted return — a deposit or withdrawal during the period
+   * shows up here as apparent gain/loss (see the caveat surfaced
+   * alongside this on the Analytics page). */
+  portfolioValueBase: number;
+  /** Hypothetical value of the *same starting amount* if it had instead
+   * been put into the benchmark ticker on the first sample date — i.e.
+   * `baseValue * (1 + benchmark's own cumulative price return)`. Lets the
+   * two lines share one axis (currency) instead of one being an abstract
+   * %. Null before the benchmark's own price history starts. */
+  benchmarkValueBase: number | null;
   /** Cumulative growth of total portfolio value since the first sample,
-   * as a fraction (0.1 = +10%). NOT a time-weighted return — a deposit or
-   * withdrawal during the period shows up here as apparent gain/loss (see
-   * the caveat surfaced alongside this on the Analytics page). */
+   * as a fraction (0.1 = +10%) — kept alongside the value for a tooltip
+   * that wants both. */
   portfolioReturn: number;
   /** Cumulative price return of the benchmark ticker over the same
    * window, or null before the benchmark's own price history starts. */
@@ -84,9 +94,13 @@ export async function getBenchmarkComparison(
       benchmarkClose && baseBenchmarkClose && !baseBenchmarkClose.isZero()
         ? benchmarkClose.dividedBy(baseBenchmarkClose).minus(1).toNumber()
         : null;
+    const benchmarkValueBase =
+      benchmarkReturn !== null ? baseValue.times(1 + benchmarkReturn).toNumber() : null;
 
     return {
       date: point.date.toISOString().slice(0, 10),
+      portfolioValueBase: point.valueBase.toNumber(),
+      benchmarkValueBase,
       portfolioReturn,
       benchmarkReturn,
     };
