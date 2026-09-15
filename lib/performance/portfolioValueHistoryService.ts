@@ -35,6 +35,10 @@ function nearestOnOrBefore<T extends { date: Date }>(series: T[], target: Date):
   return result;
 }
 
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+}
+
 /** Evenly spaced sample dates from `start` to `end` inclusive, capped at
  * `maxPoints` — dense enough for a smooth chart without replaying holdings
  * at every single day for a multi-year history. */
@@ -48,7 +52,25 @@ function buildSampleDates(start: Date, end: Date, maxPoints: number): Date[] {
     dates.push(new Date(t));
   }
   dates.push(end);
-  return dates;
+
+  // A history spanning only a day or two forces stepMs down to its
+  // DAY_MS floor, but `end` ("now") is always appended regardless — if
+  // that lands on the same calendar day as the sample right before it,
+  // the chart (keyed by date string) would plot both at the same x
+  // position. The segment between them then has zero width, which reads
+  // as the line arriving and going nowhere rather than as "no data
+  // between these samples". Collapse same-day samples, keeping the later
+  // (more current) value.
+  const deduped: Date[] = [];
+  for (const date of dates) {
+    const previous = deduped.at(-1);
+    if (previous && isSameCalendarDay(previous, date)) {
+      deduped[deduped.length - 1] = date;
+    } else {
+      deduped.push(date);
+    }
+  }
+  return deduped;
 }
 
 /**

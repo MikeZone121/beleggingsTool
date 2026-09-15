@@ -73,6 +73,13 @@ export function BenchmarkChart({ data, benchmarkTicker, currency }: BenchmarkCha
           tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           tickFormatter={(value) => formatCurrency(Number(value), currency)}
           width={72}
+          // Recharts defaults a numeric axis to start at 0, which is right
+          // for a bar chart but flattens this one: both lines track the
+          // *same starting amount*, so their day-to-day movement is a
+          // small fraction of the total value and disappears against a
+          // 0-based scale. Auto-scaling to the data's own min/max is what
+          // makes that movement visible.
+          domain={["auto", "auto"]}
         />
         <Tooltip
           formatter={(value, name, item) => {
