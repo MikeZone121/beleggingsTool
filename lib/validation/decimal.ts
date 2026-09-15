@@ -46,3 +46,14 @@ export const positiveDecimalString = decimalString.refine((val) => {
     return false;
   }
 }, "Must be greater than 0");
+
+/** A fraction between 0 and 1 inclusive (0.6 = 60%) — for weights/targets
+ * stored the same way `AllocationBucket.weight` already is. */
+export const fractionString = decimalString.refine((val) => {
+  try {
+    const d = new Decimal(val);
+    return d.greaterThanOrEqualTo(0) && d.lessThanOrEqualTo(1);
+  } catch {
+    return false;
+  }
+}, "Must be between 0 and 1");

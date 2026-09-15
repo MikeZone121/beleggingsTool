@@ -60,19 +60,38 @@ model User {
 }
 
 model Portfolio {
-  id               String           @id @default(cuid())
-  userId           String
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name             String
-  baseCurrency     String
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  baseCurrency      String
   /// Locked in once the portfolio has any transactions - see lib/finance/costBasis.ts
-  accountingMethod CostBasisMethod  @default(AVERAGE_COST)
-  isDefault        Boolean          @default(true)
-  accounts         Account[]
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  accountingMethod  CostBasisMethod   @default(AVERAGE_COST)
+  isDefault         Boolean           @default(true)
+  accounts          Account[]
+  allocationTargets AllocationTarget[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([userId])
+}
+
+model AllocationTarget {
+  id           String    @id @default(cuid())
+  portfolioId  String
+  portfolio    Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  /// One of `AllocationDimension` in types/domain.ts (e.g. "assetType",
+  /// "sector", "currency") — not a DB enum, since new dimensions shouldn't
+  /// need a migration.
+  dimension    String
+  /// The bucket this target applies to within `dimension` — e.g. "STOCK"
+  /// for assetType, "Technology" for sector, "EUR" for currency.
+  key          String
+  targetPercent Decimal  @db.Decimal(6, 4)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([portfolioId, dimension, key])
 }
 
 model Account {

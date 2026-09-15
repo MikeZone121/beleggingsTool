@@ -3,14 +3,18 @@ import Decimal from "decimal.js";
 import { requireUser } from "@/lib/auth/session";
 import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
+import { getRebalancingPlan } from "@/lib/portfolio/rebalancingService";
 import { calculateAllocation } from "@/lib/finance/allocation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
+import { RebalancingCard, type RebalancingPlanData } from "@/components/dashboard/rebalancing-card";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Money, Percent } from "@/components/ui/money";
 import { pnlTone } from "@/lib/utils/format";
 import type { AllocationChartBucket } from "@/components/charts/allocation-bar";
+
+const REBALANCING_DIMENSIONS = ["assetType", "sector", "currency"] as const;
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -25,8 +29,29 @@ export default async function DashboardPage() {
     );
   }
 
-  const snapshot = await getPortfolioSnapshot(user.id, portfolio.id);
+  const [snapshot, rebalancingPlans] = await Promise.all([
+    getPortfolioSnapshot(user.id, portfolio.id),
+    Promise.all(
+      REBALANCING_DIMENSIONS.map((dimension) =>
+        getRebalancingPlan(user.id, portfolio.id, dimension)
+      )
+    ),
+  ]);
   const { baseCurrency } = snapshot;
+  const rebalancingPlanData: RebalancingPlanData[] = rebalancingPlans.map((plan) => ({
+    dimension: plan.dimension as RebalancingPlanData["dimension"],
+    totalValue: plan.totalValue.toString(),
+    totalTargetWeight: plan.totalTargetWeight.toString(),
+    rows: plan.rows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      currentWeight: row.currentWeight.toString(),
+      targetWeight: row.targetWeight?.toString() ?? null,
+      targetId: row.targetId,
+      driftWeight: row.driftWeight?.toString() ?? null,
+      suggestedTradeBase: row.suggestedTradeBase?.toString() ?? null,
+    })),
+  }));
   const returnPercent =
     !snapshot.totalCostBasis.isZero() && snapshot.totalCostBasis.isPositive()
       ? snapshot.totalUnrealizedPnL.dividedBy(snapshot.totalCostBasis)
@@ -158,6 +183,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <RebalancingCard plans={rebalancingPlanData} baseCurrency={baseCurrency} />
     </div>
   );
 }
