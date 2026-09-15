@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { listAccounts } from "@/lib/db/accounts";
 import { listSecurities } from "@/lib/db/securities";
 import { listPortfolioTransactions } from "@/lib/portfolio/transactionService";
+import { calculateRealizedGains } from "@/lib/finance/realizedPnL";
+import { toDomainTransaction } from "@/lib/db/mappers";
 import { EmptyState } from "@/components/empty-state";
 import { AddTransactionDialog } from "@/components/transactions/add-transaction-dialog";
 import { AddSecurityDialog } from "@/components/securities/add-security-dialog";
@@ -33,6 +35,16 @@ export default async function TransactionsPage() {
     currency: s.currency,
   }));
 
+  // Keyed by transaction id — calculateRealizedGains needs every BUY/SELL
+  // for a security (not just the SELLs) to reconstruct the average-cost
+  // ledger, so it runs over the full list rather than per-row.
+  const realizedGainByTxId = new Map(
+    calculateRealizedGains(transactions.map(toDomainTransaction)).map((g) => [
+      g.transactionId,
+      g.realizedPnL,
+    ])
+  );
+
   const TYPES_WITH_QUANTITY_PRICE = new Set(["BUY", "SELL"]);
   const rows: TransactionRow[] = transactions
     .slice()
@@ -57,6 +69,7 @@ export default async function TransactionsPage() {
       netAmount: tx.netAmount.toString(),
       currency: tx.currency,
       notes: tx.notes ?? "",
+      realizedPnL: realizedGainByTxId.get(tx.id)?.toString() ?? null,
     }));
 
   return (

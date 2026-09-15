@@ -86,6 +86,14 @@ function iconTone(sign: 1 | -1 | undefined): string {
   return sign === 1 ? ICON_TONE.in : sign === -1 ? ICON_TONE.out : ICON_TONE.neutral;
 }
 
+function pnlToneClass(value: string | null): string {
+  if (!value) return "";
+  const n = Number(value);
+  if (n > 0) return "text-emerald-600 dark:text-emerald-400";
+  if (n < 0) return "text-red-600 dark:text-red-400";
+  return "text-muted-foreground";
+}
+
 export interface TransactionRow {
   id: string;
   accountId: string;
@@ -104,6 +112,10 @@ export interface TransactionRow {
   netAmount: string;
   currency: string;
   notes: string;
+  /** Realized gain/loss on a SELL, in the transaction's own currency —
+   * proceeds minus the average cost basis of the shares sold. Null for
+   * every other type, and for a SELL predating any BUY history. */
+  realizedPnL: string | null;
 }
 
 interface TransactionsTableProps {
@@ -264,6 +276,11 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
                 </TableCell>
                 <TableCell className={`text-right tabular-nums font-medium ${amountToneClass}`}>
                   <Money value={signedNetAmount} currency={tx.currency} signDisplay="always" />
+                  {tx.realizedPnL && (
+                    <div className={`text-xs font-normal ${pnlToneClass(tx.realizedPnL)}`}>
+                      <Money value={tx.realizedPnL} currency={tx.currency} signDisplay="always" /> gain/loss
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">
