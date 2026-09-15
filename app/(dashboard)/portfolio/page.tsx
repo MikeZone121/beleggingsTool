@@ -3,6 +3,7 @@ import Decimal from "decimal.js";
 import { requireUser } from "@/lib/auth/session";
 import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
+import { getPreviousClosePrices } from "@/lib/db/prices";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { pnlTone } from "@/lib/utils/format";
@@ -41,6 +42,11 @@ export default async function PortfolioPage() {
       (b.marketValueBase ?? new Decimal(0)).comparedTo(a.marketValueBase ?? new Decimal(0))
     );
 
+  const previousCloses = await getPreviousClosePrices(
+    holdings.map((h) => h.securityId),
+    new Date()
+  );
+
   const holdingRows: HoldingRow[] = holdings.map((holding) => {
     const weight = snapshot.totalValue.greaterThan(0)
       ? (holding.marketValueBase ?? new Decimal(0)).dividedBy(snapshot.totalValue)
@@ -48,6 +54,14 @@ export default async function PortfolioPage() {
     const returnPercent =
       holding.costBasis.greaterThan(0) && holding.unrealizedPnL
         ? holding.unrealizedPnL.dividedBy(holding.costBasis)
+        : null;
+    const currentPrice = holding.marketValue
+      ? holding.marketValue.dividedBy(holding.quantity)
+      : null;
+    const previousClose = previousCloses.get(holding.securityId);
+    const dayChangePercent =
+      currentPrice && previousClose && !new Decimal(previousClose).isZero()
+        ? currentPrice.minus(previousClose).dividedBy(previousClose)
         : null;
 
     return {
@@ -57,10 +71,9 @@ export default async function PortfolioPage() {
       currency: holding.currency,
       quantity: holding.quantity.toString(),
       averageCost: holding.averageCost.toString(),
-      currentPrice: holding.marketValue
-        ? holding.marketValue.dividedBy(holding.quantity).toString()
-        : null,
+      currentPrice: currentPrice?.toString() ?? null,
       priceStale: holding.priceStale,
+      dayChangePercent: dayChangePercent?.toString() ?? null,
       marketValueBase: holding.marketValueBase?.toString() ?? null,
       weight: weight?.toString() ?? null,
       unrealizedPnLBase: holding.unrealizedPnLBase?.toString() ?? null,

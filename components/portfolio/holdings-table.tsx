@@ -24,6 +24,10 @@ export interface HoldingRow {
   averageCost: string;
   currentPrice: string | null;
   priceStale: boolean;
+  /** vs. the most recent prior trading day's close, whichever market
+   * (EU/US/CA) the security trades on. Null when there's no prior close
+   * to compare against yet. */
+  dayChangePercent: string | null;
   marketValueBase: string | null;
   weight: string | null;
   unrealizedPnLBase: string | null;
@@ -48,6 +52,14 @@ const toneClass: Record<HoldingRow["tone"], string> = {
   negative: "text-red-600 dark:text-red-400",
   neutral: "",
 };
+
+function dayChangeToneClass(value: string | null): string {
+  if (!value) return "";
+  const n = Number(value);
+  if (n > 0) return "text-emerald-600 dark:text-emerald-400";
+  if (n < 0) return "text-red-600 dark:text-red-400";
+  return "";
+}
 
 export function HoldingsTable({ holdings, cash, baseCurrency }: HoldingsTableProps) {
   const [query, setQuery] = useState("");
@@ -133,7 +145,9 @@ export function HoldingsTable({ holdings, cash, baseCurrency }: HoldingsTablePro
               <TableCell className="text-right tabular-nums">
                 <div className="flex items-center justify-end gap-1">
                   {holding.currentPrice ? (
-                    <Money value={holding.currentPrice} currency={holding.currency} />
+                    <span className={dayChangeToneClass(holding.dayChangePercent)}>
+                      <Money value={holding.currentPrice} currency={holding.currency} />
+                    </span>
                   ) : (
                     <Badge variant="secondary">no price</Badge>
                   )}
@@ -147,6 +161,11 @@ export function HoldingsTable({ holdings, cash, baseCurrency }: HoldingsTablePro
                     currentPrice={holding.currentPrice}
                   />
                 </div>
+                {holding.dayChangePercent && (
+                  <div className={`text-xs ${dayChangeToneClass(holding.dayChangePercent)}`}>
+                    <Percent value={holding.dayChangePercent} signDisplay="always" /> today
+                  </div>
+                )}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 <Money value={holding.marketValueBase} currency={baseCurrency} />
