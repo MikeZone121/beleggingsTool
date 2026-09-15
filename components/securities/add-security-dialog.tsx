@@ -124,7 +124,10 @@ export function AddSecurityDialog() {
       const result = await response.json();
 
       if (!response.ok) {
-        setServerError(result.error?.message ?? "Failed to create security");
+        const firstDetail = Object.values(result.error?.details ?? {})[0] as
+          | string[]
+          | undefined;
+        setServerError(firstDetail?.[0] ?? result.error?.message ?? "Failed to create security");
         return;
       }
 

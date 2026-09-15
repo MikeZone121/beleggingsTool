@@ -1,5 +1,5 @@
 import { z } from "zod";
-import Decimal from "decimal.js";
+import { decimalString, positiveDecimalString } from "./decimal";
 
 export const TRANSACTION_TYPES = [
   "BUY",
@@ -29,25 +29,6 @@ const TYPES_REQUIRING_AMOUNT = new Set([
   "TAX",
   "OTHER",
 ]);
-
-/** A numeric string that must parse as a valid, finite decimal. */
-const decimalString = z
-  .string()
-  .trim()
-  .min(1, "Required")
-  .refine((val) => {
-    try {
-      const parsed = new Decimal(val);
-      return parsed.isFinite();
-    } catch {
-      return false;
-    }
-  }, "Must be a valid number");
-
-const positiveDecimalString = decimalString.refine(
-  (val) => new Decimal(val).greaterThan(0),
-  "Must be greater than 0"
-);
 
 export const transactionInputSchema = z
   .object({

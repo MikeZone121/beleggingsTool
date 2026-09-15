@@ -114,6 +114,13 @@ export function AllocationBar({ buckets, currency, identityOrder }: AllocationBa
               background: "var(--popover)",
               color: "var(--popover-foreground)",
             }}
+            // Recharts defaults each item's text to the series' own `fill`
+            // color, resolved from a literal hex/rgb value — it can't read
+            // our Tailwind `fill-chart-*` classes, so it silently falls
+            // back to black. Force both the label and item rows to the
+            // theme's popover text color explicitly, in both directions.
+            labelStyle={{ color: "var(--popover-foreground)" }}
+            itemStyle={{ color: "var(--popover-foreground)" }}
           />
           {ordered.map((bucket) => (
             <Bar

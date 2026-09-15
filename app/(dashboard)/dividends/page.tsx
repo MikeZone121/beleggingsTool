@@ -122,7 +122,7 @@ export default async function DividendsPage() {
       </div>
 
       {snapshot.yieldsBySecurity.size > 0 && (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
           <Table>
             <TableHeader>
               <TableRow>
@@ -148,7 +148,7 @@ export default async function DividendsPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
         <Table>
           <TableHeader>
             <TableRow>

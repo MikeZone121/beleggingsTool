@@ -1,5 +1,5 @@
 import { z } from "zod";
-import Decimal from "decimal.js";
+import { positiveDecimalString } from "./decimal";
 
 export const ASSET_TYPES = [
   "STOCK",
@@ -13,18 +13,6 @@ export const ASSET_TYPES = [
 
 export const assetTypeSchema = z.enum(ASSET_TYPES);
 
-const decimalString = z
-  .string()
-  .trim()
-  .min(1)
-  .refine((val) => {
-    try {
-      return new Decimal(val).isFinite();
-    } catch {
-      return false;
-    }
-  }, "Must be a valid number");
-
 export const securityInputSchema = z.object({
   ticker: z.string().trim().min(1).max(20).toUpperCase(),
   name: z.string().trim().min(1).max(200),
@@ -32,9 +20,11 @@ export const securityInputSchema = z.object({
   assetType: assetTypeSchema,
   exchange: z.string().trim().max(50).optional().nullable(),
   currency: z.string().length(3).toUpperCase(),
-  country: z.string().trim().max(2).optional().nullable(),
+  // Accepts either an ISO-2 code (manual entry) or a full country name
+  // (Twelve Data's symbol search returns e.g. "United States", not "US").
+  country: z.string().trim().max(60).optional().nullable(),
   sector: z.string().trim().max(100).optional().nullable(),
-  currentPrice: decimalString.optional().nullable(),
+  currentPrice: positiveDecimalString.optional().nullable(),
 });
 
 export type SecurityInput = z.infer<typeof securityInputSchema>;

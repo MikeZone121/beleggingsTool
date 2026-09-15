@@ -75,6 +75,7 @@ export default async function DashboardPage() {
               ? "Incomplete — missing FX rate"
               : "Holdings + cash"
           }
+          highlight
         />
         <KpiCard
           label="Cash Balance"
@@ -127,11 +128,11 @@ export default async function DashboardPage() {
           baseCurrency={baseCurrency}
         />
 
-        <div className="rounded-lg border">
-          <div className="border-b px-4 py-3">
+        <div className="rounded-xl bg-card text-card-foreground shadow-sm shadow-black/5 ring-1 ring-foreground/5">
+          <div className="border-b border-border px-4 py-3">
             <h2 className="text-sm font-medium">Top Holdings</h2>
           </div>
-          <div className="divide-y">
+          <div className="divide-y divide-border">
             {snapshot.holdings
               .slice()
               .sort((a, b) =>

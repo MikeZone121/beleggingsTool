@@ -80,7 +80,7 @@ export default async function TransactionsPage() {
           description="Add your first transaction to start tracking your portfolio."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
           <TransactionsTable transactions={rows} />
         </div>
       )}

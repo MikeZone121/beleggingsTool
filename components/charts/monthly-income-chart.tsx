@@ -55,6 +55,11 @@ export function MonthlyIncomeChart({ data, currency }: MonthlyIncomeChartProps) 
             background: "var(--popover)",
             color: "var(--popover-foreground)",
           }}
+          // See allocation-bar.tsx: Recharts defaults item text to the
+          // series' own resolved color, which it can't read from our
+          // Tailwind `fill-chart-*` class — force it explicitly instead.
+          labelStyle={{ color: "var(--popover-foreground)" }}
+          itemStyle={{ color: "var(--popover-foreground)" }}
         />
         <Bar dataKey="income" radius={[4, 4, 0, 0]} className="fill-chart-1" maxBarSize={28} />
       </BarChart>

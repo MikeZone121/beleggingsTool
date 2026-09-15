@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { TRANSACTION_TYPES, transactionInputSchema } from "@/lib/validation/transaction";
+import { SecuritySearchField, type SelectedSecurity } from "./security-search-field";
 
 const TYPES_WITH_SECURITY = new Set(["BUY", "SELL", "DIVIDEND", "SPLIT"]);
 const TYPES_WITH_QUANTITY_PRICE = new Set(["BUY", "SELL"]);
@@ -67,6 +68,7 @@ export function TransactionForm({ accounts, securities, onSuccess }: Transaction
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
     reset,
   } = useForm<FormValues>({
@@ -78,9 +80,24 @@ export function TransactionForm({ accounts, securities, onSuccess }: Transaction
     defaultValues: { ...defaultValues, accountId: accounts[0]?.id ?? "" },
   });
 
+  const [selectedSecurity, setSelectedSecurity] = useState<SelectedSecurity | null>(null);
+  const [knownSecurities, setKnownSecurities] = useState(securities);
+
   const type = watch("type");
   const needsSecurity = TYPES_WITH_SECURITY.has(type);
   const needsQuantityPrice = TYPES_WITH_QUANTITY_PRICE.has(type);
+
+  function handleSecuritySelect(security: SelectedSecurity) {
+    setSelectedSecurity(security);
+    setValue("securityId", security.id, { shouldValidate: true });
+    setValue("currency", security.currency, { shouldValidate: true });
+    // A security created inline (via the provider search) isn't in the
+    // `securities` prop yet — remember it locally so it shows as "known"
+    // immediately, without waiting for the page to re-fetch.
+    setKnownSecurities((prev) =>
+      prev.some((s) => s.id === security.id) ? prev : [...prev, security]
+    );
+  }
 
   async function onSubmit(values: FormValues) {
     setSubmitting(true);
@@ -111,6 +128,7 @@ export function TransactionForm({ accounts, securities, onSuccess }: Transaction
 
       toast.success("Transaction added");
       reset({ ...defaultValues, accountId: values.accountId, currency: values.currency });
+      setSelectedSecurity(null);
       router.refresh();
       onSuccess?.();
     } finally {
@@ -161,18 +179,12 @@ export function TransactionForm({ accounts, securities, onSuccess }: Transaction
         {needsSecurity && (
           <Field>
             <FieldLabel htmlFor="securityId">Security</FieldLabel>
-            <select
-              id="securityId"
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm"
-              {...register("securityId")}
-            >
-              <option value="">Select a security…</option>
-              {securities.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.ticker} — {s.name}
-                </option>
-              ))}
-            </select>
+            <SecuritySearchField
+              existingSecurities={knownSecurities}
+              value={selectedSecurity}
+              onSelect={handleSecuritySelect}
+            />
+            <input type="hidden" {...register("securityId")} />
             {errors.securityId && <FieldError>{errors.securityId.message}</FieldError>}
           </Field>
         )}

@@ -1,21 +1,11 @@
 import { z } from "zod";
-import Decimal from "decimal.js";
 import { requireApiUser } from "@/lib/auth/session";
 import { updateSecurityPrice } from "@/lib/db/securities";
+import { positiveDecimalString } from "@/lib/validation/decimal";
 import { apiErrorFromException, apiSuccess } from "@/lib/utils/apiResponse";
 
 const priceUpdateSchema = z.object({
-  currentPrice: z
-    .string()
-    .trim()
-    .min(1)
-    .refine((val) => {
-      try {
-        return new Decimal(val).greaterThan(0);
-      } catch {
-        return false;
-      }
-    }, "Must be a positive number"),
+  currentPrice: positiveDecimalString,
 });
 
 interface RouteParams {

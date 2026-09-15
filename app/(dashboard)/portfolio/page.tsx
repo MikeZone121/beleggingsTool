@@ -29,12 +29,13 @@ export default async function PortfolioPage() {
 
   const snapshot = await getPortfolioSnapshot(user.id, portfolio.id);
   const { baseCurrency } = snapshot;
+  const hasCash = !snapshot.cashBalance.balanceBase.isZero();
 
-  if (snapshot.holdings.length === 0) {
+  if (snapshot.holdings.length === 0 && !hasCash) {
     return (
       <EmptyState
         title="No holdings yet"
-        description="Buy transactions will show up here as holdings once you add them."
+        description="Record a DEPOSIT to add cash, then a BUY to start tracking holdings."
         action={
           <Button render={<Link href="/transactions" />} nativeButton={false}>
             Add your first transaction
@@ -56,13 +57,14 @@ export default async function PortfolioPage() {
         <div>
           <h1 className="text-2xl font-semibold">Portfolio</h1>
           <p className="text-sm text-muted-foreground">
-            {holdings.length} holding{holdings.length === 1 ? "" : "s"} · {portfolio.name}
+            {holdings.length} holding{holdings.length === 1 ? "" : "s"}
+            {hasCash ? " + cash" : ""} · {portfolio.name}
           </p>
         </div>
         <RefreshPricesButton />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
         <Table>
           <TableHeader>
             <TableRow>
@@ -77,6 +79,31 @@ export default async function PortfolioPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {hasCash && (
+              <TableRow>
+                <TableCell>
+                  <div className="font-medium">Cash</div>
+                  <div className="text-xs text-muted-foreground">{baseCurrency} balance</div>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">—</TableCell>
+                <TableCell className="text-right tabular-nums">—</TableCell>
+                <TableCell className="text-right tabular-nums">—</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  <Money value={snapshot.cashBalance.balanceBase.toString()} currency={baseCurrency} />
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {snapshot.totalValue.greaterThan(0) ? (
+                    <Percent
+                      value={snapshot.cashBalance.balanceBase.dividedBy(snapshot.totalValue).toString()}
+                    />
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">—</TableCell>
+                <TableCell className="text-right tabular-nums">—</TableCell>
+              </TableRow>
+            )}
             {holdings.map((holding) => {
               const weight = snapshot.totalValue.greaterThan(0)
                 ? (holding.marketValueBase ?? new Decimal(0)).dividedBy(snapshot.totalValue)
