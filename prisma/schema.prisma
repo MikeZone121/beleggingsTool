@@ -50,13 +50,14 @@ enum CostBasisMethod {
 }
 
 model User {
-  id           String      @id @default(cuid())
-  email        String      @unique
-  name         String?
-  passwordHash String?
-  portfolios   Portfolio[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id             String          @id @default(cuid())
+  email          String          @unique
+  name           String?
+  passwordHash   String?
+  portfolios     Portfolio[]
+  watchlistItems WatchlistItem[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model Portfolio {
@@ -129,11 +130,28 @@ model Security {
   prices           Price[]
   dividends        Dividend[]
   corporateActions CorporateAction[]
+  watchlistItems   WatchlistItem[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
   @@unique([ticker, exchange])
   @@index([isin])
+}
+
+/// A security tracked without owning it — no transactions, just "keep an
+/// eye on this price". Deliberately independent of Portfolio/Account: a
+/// watchlist is a per-user thing, not a per-portfolio one.
+model WatchlistItem {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  securityId String
+  security   Security @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, securityId])
+  @@index([securityId])
 }
 
 model Transaction {
