@@ -3,6 +3,7 @@ import { upsertDividendEvent } from "@/lib/db/dividends";
 import { getFinancialDataProvider, ProviderError } from "@/lib/providers/financialData";
 
 export interface DividendSyncSummary {
+  provider: string;
   updated: number;
   failed: number;
   skipped: number;
@@ -62,5 +63,5 @@ export async function syncDividendHistory(): Promise<DividendSyncSummary> {
     }
   }
 
-  return { updated, failed, skipped, errors };
+  return { provider: provider.name, updated, failed, skipped, errors };
 }

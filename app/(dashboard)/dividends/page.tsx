@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth/session";
 import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { listSecurities } from "@/lib/db/securities";
-import { getDividendSnapshot } from "@/lib/dividends/dividendService";
+import { getDividendSnapshot, getDividendCalendar } from "@/lib/dividends/dividendService";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
 import { MonthlyIncomeChart } from "@/components/charts/monthly-income-chart";
@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils/format";
 import { Money, Percent } from "@/components/ui/money";
+import { DividendCalendar } from "@/components/dividends/dividend-calendar";
+import { SyncDividendsButton } from "@/components/dividends/sync-dividends-button";
 
 const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -34,17 +36,35 @@ export default async function DividendsPage() {
     return <EmptyState title="No portfolio yet" description="No default portfolio was found." />;
   }
 
-  const [snapshot, securities] = await Promise.all([
+  const [snapshot, securities, calendarRows] = await Promise.all([
     getDividendSnapshot(user.id, portfolio.id),
     listSecurities(),
+    getDividendCalendar(user.id, portfolio.id),
   ]);
   const { baseCurrency } = snapshot;
   const tickerBySecurityId = new Map(securities.map((s) => [s.id, s.ticker]));
 
+  const calendarData = calendarRows.map((row) => ({
+    securityId: row.securityId,
+    ticker: row.ticker,
+    name: row.name,
+    currency: row.currency,
+    lastExDate: row.estimate.lastExDate.toISOString(),
+    lastAmountPerShare: row.estimate.lastAmountPerShare.toString(),
+    estimatedNextExDate: row.estimate.estimatedNextExDate.toISOString(),
+    estimatedAmountPerShare: row.estimate.estimatedAmountPerShare.toString(),
+    estimatedIntervalDays: row.estimate.estimatedIntervalDays,
+    paymentsOnRecord: row.estimate.paymentsOnRecord,
+  }));
+
   if (snapshot.cashflows.length === 0) {
     return (
       <div className="flex flex-col gap-6">
-        <h1 className="text-2xl font-semibold">Dividends</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Dividends</h1>
+          <SyncDividendsButton />
+        </div>
+        <DividendCalendar rows={calendarData} />
         <EmptyState
           title="No dividend income yet"
           description="Record a DIVIDEND transaction to start tracking your dividend income, yield, and growth."
@@ -63,10 +83,15 @@ export default async function DividendsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Dividends</h1>
-        <p className="text-sm text-muted-foreground">{portfolio.name}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Dividends</h1>
+          <p className="text-sm text-muted-foreground">{portfolio.name}</p>
+        </div>
+        <SyncDividendsButton />
       </div>
+
+      <DividendCalendar rows={calendarData} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
