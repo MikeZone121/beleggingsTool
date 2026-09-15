@@ -1,61 +1,44 @@
 import { refreshAllPrices } from "./priceRefreshService";
 import { syncPriceHistory } from "./priceHistorySyncService";
-import { syncDividendHistory } from "./dividendSyncService";
-import { createDividendTransactionsFromHistory } from "./dividendTransactionService";
 
 export interface RefreshAllSummary {
   provider: string;
   prices: { updated: number; failed: number; skipped: number };
   priceHistory: { updated: number; failed: number; skipped: number };
-  dividends: { updated: number; failed: number; skipped: number };
-  dividendTransactions: { created: number; failed: number };
-  /** Every individual failure across all four steps, prefixed with which
-   * step it came from — the four buttons this replaces each show their
-   * own errors in detail; this summary keeps that detail instead of
+  /** Every individual failure across both steps, prefixed with which step
+   * it came from — the separate buttons this replaces each show their own
+   * errors in detail; this summary keeps that detail instead of
    * flattening it into just a count. */
   errors: Array<{ step: string; ticker: string; message: string }>;
 }
 
 /**
- * The single-click counterpart to the four separate sync buttons scattered
- * across Portfolio ("Refresh Prices"), Analytics ("Sync Price History"),
- * and Dividends ("Sync Dividend History") — each of those updates a
- * different slice of market data, and a user clicking only one (most
- * naturally "Refresh Prices", since that's the most visible one) can end
- * up looking at a portfolio value that seems stuck even right after a
- * "refresh", because the *other* three weren't run. This runs all four in
- * one action: current prices (which already includes FX rates — see
- * `priceRefreshService.ts`), historical prices (for the benchmark chart/
- * drawdown), dividend history, and the dividend transactions derived from
- * it.
+ * The single-click counterpart to the "Refresh Prices" (Portfolio) and
+ * "Sync Price History" (Analytics) buttons — a user clicking only one of
+ * them (most naturally "Refresh Prices", since that's the most visible
+ * one) can end up looking at a portfolio value that seems stuck even
+ * right after a "refresh", because the other wasn't run. This runs both
+ * in one action: current prices (which already includes FX rates — see
+ * `priceRefreshService.ts`) and historical prices (for the benchmark
+ * chart/drawdown/day-change coloring).
+ *
+ * Deliberately excludes dividend history/transactions — those don't
+ * change intraday, and are already kept current by the daily
+ * `/api/cron/sync-dividends` job, so re-running them on every click would
+ * just burn provider rate limit for no new data.
  *
  * Runs sequentially, not in parallel — same rate-limit-friendly reasoning
  * as each individual step already follows.
  */
-export async function refreshAllMarketData(
-  userId: string,
-  portfolioId: string
-): Promise<RefreshAllSummary> {
+export async function refreshAllMarketData(): Promise<RefreshAllSummary> {
   const priceSummary = await refreshAllPrices();
   const priceHistorySummary = await syncPriceHistory();
-  const dividendSummary = await syncDividendHistory();
-  const dividendTxSummary = await createDividendTransactionsFromHistory(userId, portfolioId);
 
   const errors: RefreshAllSummary["errors"] = [
     ...priceSummary.errors.map((e) => ({ step: "Prices", ticker: e.ticker, message: e.message })),
     ...priceHistorySummary.errors.map((e) => ({
       step: "Price history",
       ticker: e.ticker,
-      message: e.message,
-    })),
-    ...dividendSummary.errors.map((e) => ({
-      step: "Dividend history",
-      ticker: e.ticker,
-      message: e.message,
-    })),
-    ...dividendTxSummary.errors.map((e) => ({
-      step: "Dividend transactions",
-      ticker: e.securityId,
       message: e.message,
     })),
   ];
@@ -71,15 +54,6 @@ export async function refreshAllMarketData(
       updated: priceHistorySummary.updated,
       failed: priceHistorySummary.failed,
       skipped: priceHistorySummary.skipped,
-    },
-    dividends: {
-      updated: dividendSummary.updated,
-      failed: dividendSummary.failed,
-      skipped: dividendSummary.skipped,
-    },
-    dividendTransactions: {
-      created: dividendTxSummary.created,
-      failed: dividendTxSummary.failed,
     },
     errors,
   };

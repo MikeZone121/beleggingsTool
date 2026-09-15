@@ -10,8 +10,6 @@ interface RefreshAllSummary {
   provider: string;
   prices: { updated: number; failed: number; skipped: number };
   priceHistory: { updated: number; failed: number; skipped: number };
-  dividends: { updated: number; failed: number; skipped: number };
-  dividendTransactions: { created: number; failed: number };
   errors: Array<{ step: string; ticker: string; message: string }>;
 }
 
@@ -35,19 +33,10 @@ export function RefreshAllButton() {
         return;
       }
 
-      const totalFailed =
-        summary.prices.failed +
-        summary.priceHistory.failed +
-        summary.dividends.failed +
-        summary.dividendTransactions.failed;
+      const totalFailed = summary.prices.failed + summary.priceHistory.failed;
 
       const parts = [`${summary.prices.updated} prices`];
       if (summary.priceHistory.updated > 0) parts.push(`${summary.priceHistory.updated} price histories`);
-      if (summary.dividendTransactions.created > 0) {
-        parts.push(
-          `${summary.dividendTransactions.created} new dividend${summary.dividendTransactions.created === 1 ? "" : "s"}`
-        );
-      }
 
       if (totalFailed > 0) {
         console.error("Refresh All failures:", summary.errors);
