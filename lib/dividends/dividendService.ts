@@ -1,6 +1,7 @@
-import type Decimal from "decimal.js";
+import Decimal from "decimal.js";
 import { listTransactionsForPortfolio } from "@/lib/db/transactions";
 import { listExchangeRates } from "@/lib/db/exchangeRates";
+import { listDividendsForSecurities } from "@/lib/db/dividends";
 import { getPortfolioById } from "@/lib/db/portfolios";
 import { toDomainTransaction, toFxRate } from "@/lib/db/mappers";
 import {
@@ -11,6 +12,7 @@ import {
   calculateDividendGrowth,
   type PeriodIncome,
 } from "@/lib/finance/dividendMetrics";
+import { estimateNextDividend, type EstimatedDividend } from "@/lib/finance/dividendCalendar";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
 import type { DividendCashflow, DividendYieldResult, DividendGrowthResult } from "@/types/domain";
 
@@ -81,4 +83,51 @@ export async function getDividendSnapshot(
     yieldsBySecurity,
     portfolioGrowth,
   };
+}
+
+export interface DividendCalendarRow {
+  securityId: string;
+  ticker: string;
+  name: string;
+  currency: string;
+  estimate: EstimatedDividend;
+}
+
+/**
+ * Projects each currently-held security's next ex-dividend date/amount from
+ * its synced paid-dividend history (see `dividendSyncService.ts`). A
+ * security with no history yet (never synced, or a provider with no
+ * dividend data) is simply omitted rather than shown with a guess.
+ */
+export async function getDividendCalendar(
+  userId: string,
+  portfolioId: string
+): Promise<DividendCalendarRow[]> {
+  const snapshot = await getPortfolioSnapshot(userId, portfolioId);
+  const heldHoldings = snapshot.holdings.filter((h) => h.quantity.greaterThan(0));
+
+  const dividendRows = await listDividendsForSecurities(heldHoldings.map((h) => h.securityId));
+  const historyBySecurity = new Map<string, { exDividendDate: Date; dividendPerShare: Decimal }[]>();
+  for (const row of dividendRows) {
+    const list = historyBySecurity.get(row.securityId) ?? [];
+    list.push({ exDividendDate: row.exDividendDate, dividendPerShare: new Decimal(row.dividendPerShare) });
+    historyBySecurity.set(row.securityId, list);
+  }
+
+  const calendar: DividendCalendarRow[] = [];
+  for (const holding of heldHoldings) {
+    const estimate = estimateNextDividend(historyBySecurity.get(holding.securityId) ?? []);
+    if (!estimate) continue;
+    calendar.push({
+      securityId: holding.securityId,
+      ticker: holding.ticker,
+      name: holding.name,
+      currency: holding.currency,
+      estimate,
+    });
+  }
+
+  return calendar.sort(
+    (a, b) => a.estimate.estimatedNextExDate.getTime() - b.estimate.estimatedNextExDate.getTime()
+  );
 }
