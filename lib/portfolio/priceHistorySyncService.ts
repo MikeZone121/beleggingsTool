@@ -11,6 +11,13 @@ export interface PriceHistorySyncSummary {
   errors: Array<{ ticker: string; message: string }>;
 }
 
+const DAY_MS = 86_400_000;
+/** Fetch a bit earlier than the date we actually need — a nearest-prior-date
+ * lookup (see `portfolioValueHistoryService.ts`) has nothing to find if the
+ * cached series starts exactly on the first date it's ever queried for, and
+ * that date wasn't a trading day (weekend/holiday). */
+const LOOKBACK_PADDING_DAYS = 10;
+
 /**
  * Backfills the `Price` table (unused until now) with each traded
  * security's daily close history, back to that security's own first
@@ -51,7 +58,7 @@ export async function syncPriceHistory(): Promise<PriceHistorySyncSummary> {
     try {
       const points = await provider.getHistoricalPrices(
         security.ticker,
-        earliestNeeded,
+        new Date(earliestNeeded.getTime() - LOOKBACK_PADDING_DAYS * DAY_MS),
         today,
         security.exchange
       );

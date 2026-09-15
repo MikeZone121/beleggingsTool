@@ -27,6 +27,11 @@ export interface BenchmarkComparisonPoint {
 export interface BenchmarkComparison {
   benchmarkTicker: string;
   points: BenchmarkComparisonPoint[];
+  /** Set when the benchmark ticker's own price history couldn't be
+   * fetched at all — the portfolio line still renders, but the caller
+   * should say *why* the benchmark one is missing rather than leaving it
+   * unexplained. */
+  benchmarkError: string | null;
 }
 
 interface PricePoint {
@@ -43,6 +48,16 @@ function nearestOnOrBefore(series: PricePoint[], target: Date): PricePoint | nul
   return result;
 }
 
+const DAY_MS = 86_400_000;
+/** Padding before the actual date range we need, so `nearestOnOrBefore`
+ * always has a candidate even when the range's exact start date isn't a
+ * trading day (a weekend, a market holiday) — fetching a series that
+ * starts exactly *at* `firstDate` would otherwise make it structurally
+ * impossible to find anything "on or before" `firstDate` whenever
+ * `firstDate` itself didn't trade, which read as "no price history that
+ * far back" even for tickers that have traded for decades. */
+const LOOKBACK_PADDING_DAYS = 10;
+
 /**
  * Pairs the portfolio's reconstructed value history with a benchmark
  * ticker's price history (fetched live — a single security's full range is
@@ -56,33 +71,45 @@ export async function getBenchmarkComparison(
   benchmarkTicker: string
 ): Promise<BenchmarkComparison> {
   const fullHistory = await getPortfolioValueHistory(userId, portfolioId);
-  // A near-zero or negative value near the very start (e.g. a security
-  // bought before any funding deposit was recorded) would make every
-  // later ratio explode — anchor "since the first sample" at the first
-  // point that's actually a meaningful base, not an artifact of early,
-  // incomplete history.
+  // getPortfolioValueHistory anchors at the first DEPOSIT, which should
+  // already be a meaningful positive value — this is just a last-resort
+  // guard against the rare case where even that's <= 0 (e.g. fees or a
+  // same-day withdrawal wiped it out), so a stray non-positive point
+  // can't still blow up the ratios below.
   const baseIndex = fullHistory.findIndex((p) => p.valueBase.greaterThan(0));
   const valueHistory = baseIndex === -1 ? [] : fullHistory.slice(baseIndex);
   if (valueHistory.length < 2) {
-    return { benchmarkTicker, points: [] };
+    return { benchmarkTicker, points: [], benchmarkError: null };
   }
 
   const provider = getFinancialDataProvider();
   const firstDate = valueHistory[0].date;
   const lastDate = valueHistory.at(-1)!.date;
 
+  const fetchFrom = new Date(firstDate.getTime() - LOOKBACK_PADDING_DAYS * DAY_MS);
+
   let benchmarkSeries: PricePoint[] = [];
+  let benchmarkError: string | null = null;
   try {
-    const historicalPoints = await provider.getHistoricalPrices(benchmarkTicker, firstDate, lastDate);
+    const historicalPoints = await provider.getHistoricalPrices(benchmarkTicker, fetchFrom, lastDate);
     benchmarkSeries = historicalPoints.map((p) => ({ date: p.date, close: p.close }));
-  } catch {
+    if (benchmarkSeries.length === 0) {
+      benchmarkError = `No price history found for "${benchmarkTicker}" — check the ticker is correct.`;
+    }
+  } catch (error) {
     // A bad/unresolvable ticker degrades to "no benchmark line" rather than
-    // failing the whole comparison — the portfolio's own series is still useful.
+    // failing the whole comparison — the portfolio's own series is still
+    // useful — but the reason is surfaced via `benchmarkError` instead of
+    // silently rendering an empty line with no explanation.
     benchmarkSeries = [];
+    benchmarkError = error instanceof Error ? error.message : "Failed to load benchmark price history.";
   }
 
   const baseValue = valueHistory[0].valueBase;
   const baseBenchmarkClose = nearestOnOrBefore(benchmarkSeries, firstDate)?.close ?? null;
+  if (!benchmarkError && benchmarkSeries.length > 0 && baseBenchmarkClose === null) {
+    benchmarkError = `"${benchmarkTicker}"'s own price history doesn't reach back to ${firstDate.toISOString().slice(0, 10)} yet.`;
+  }
 
   const points: BenchmarkComparisonPoint[] = valueHistory.map((point) => {
     const portfolioReturn = baseValue.isZero()
@@ -106,5 +133,5 @@ export async function getBenchmarkComparison(
     };
   });
 
-  return { benchmarkTicker, points };
+  return { benchmarkTicker, points, benchmarkError };
 }

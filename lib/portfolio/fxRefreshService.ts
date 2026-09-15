@@ -14,6 +14,9 @@ export interface FxRefreshSummary {
   errors: Array<{ pair: string; message: string }>;
 }
 
+const DAY_MS = 86_400_000;
+const LOOKBACK_PADDING_DAYS = 10;
+
 function errorMessage(error: unknown): string {
   if (error instanceof ProviderError) return error.message;
   if (error instanceof Error) return error.message;
@@ -132,7 +135,12 @@ async function backfillHistory(
   }
 
   try {
-    const points = await provider.getHistoricalPrices(ticker, earliestNeeded, today);
+    // Padded a bit earlier than the actual date needed — a nearest-prior-
+    // date lookup (see findFxRate) has nothing to find if the fetched
+    // series starts exactly on the one date it's ever queried against, and
+    // that date wasn't a trading day (weekend/holiday).
+    const fetchFrom = new Date(earliestNeeded.getTime() - LOOKBACK_PADDING_DAYS * DAY_MS);
+    const points = await provider.getHistoricalPrices(ticker, fetchFrom, today);
     for (const point of points) {
       await upsertExchangeRate({
         baseCurrency: from,

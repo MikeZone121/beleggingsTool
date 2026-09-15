@@ -98,7 +98,19 @@ export async function getPortfolioValueHistory(
   const fxRateRows = await listExchangeRates();
   const fxRates = fxRateRows.map(toFxRate);
 
-  const earliestDate = transactions[0].date;
+  // Anchoring at the first transaction of any kind (rather than the first
+  // DEPOSIT) breaks down whenever a security was bought before any funding
+  // was ever recorded: cash sits deeply negative for however long that
+  // gap lasts (nothing wrong with the math — that money genuinely isn't
+  // accounted for yet), so the reconstructed value hovers near zero for
+  // that whole stretch. Normalizing "since the first sample" against a
+  // near-zero, noisy baseline then makes every later ratio swing wildly —
+  // exactly the "why does my drawdown say -80%" and "the chart is flat
+  // then jumps" reports this was built to explain. Starting from the
+  // first real funding event is what "since I started investing" means
+  // to an investor anyway.
+  const firstDeposit = transactions.find((t) => t.type === "DEPOSIT");
+  const earliestDate = firstDeposit?.date ?? transactions[0].date;
   const today = new Date();
   const sampleDates = buildSampleDates(earliestDate, today, maxPoints);
 

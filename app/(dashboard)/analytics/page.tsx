@@ -128,6 +128,7 @@ export default async function AnalyticsPage() {
       <BenchmarkCard
         initialTicker={benchmark.benchmarkTicker}
         initialPoints={benchmark.points}
+        initialError={benchmark.benchmarkError}
         currency={performance.baseCurrency}
       />
 
