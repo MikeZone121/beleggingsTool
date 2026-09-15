@@ -15,7 +15,7 @@ import { ZERO } from "./money";
  * a transfer's direction, so guessing a sign would silently misstate cash —
  * see `hasExcludedTransactions` below instead.
  */
-const CASH_IMPACT_SIGN: Partial<Record<TransactionType, 1 | -1>> = {
+export const CASH_IMPACT_SIGN: Partial<Record<TransactionType, 1 | -1>> = {
   DEPOSIT: 1,
   WITHDRAWAL: -1,
   BUY: -1,
