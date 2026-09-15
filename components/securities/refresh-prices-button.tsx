@@ -19,11 +19,29 @@ export function RefreshPricesButton() {
         toast.error(result.error?.message ?? "Failed to refresh prices");
         return;
       }
-      const { provider, updated, failed, skipped } = result.data;
+      const { provider, updated, failed, skipped, errors } = result.data as {
+        provider: string;
+        updated: number;
+        failed: number;
+        skipped: number;
+        errors: Array<{ ticker: string; message: string }>;
+      };
       if (provider === "manual") {
         toast.info("No market-data provider configured — prices are entered manually.");
       } else if (failed > 0) {
-        toast.warning(`Updated ${updated}, ${failed} failed, ${skipped} skipped`);
+        // Counts alone ("13 failed") give no way to tell a bad ticker from a
+        // rate limit from a genuine provider outage — log every failure so
+        // it's actually diagnosable from the browser console, and surface
+        // the first few directly in the toast.
+        console.error("Price refresh failures:", errors);
+        const preview = errors
+          .slice(0, 3)
+          .map((e) => `${e.ticker}: ${e.message}`)
+          .join("\n");
+        toast.warning(`Updated ${updated}, ${failed} failed, ${skipped} skipped`, {
+          description: errors.length > 3 ? `${preview}\n…and ${errors.length - 3} more` : preview,
+          duration: 15000,
+        });
       } else {
         toast.success(`Updated ${updated} price${updated === 1 ? "" : "s"}`);
       }
