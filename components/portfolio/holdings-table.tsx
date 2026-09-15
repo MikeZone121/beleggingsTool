@@ -22,6 +22,9 @@ export interface HoldingRow {
   currency: string;
   quantity: string;
   averageCost: string;
+  /** Trailing-12-month dividends / cost basis — "what you get back per
+   * year, as a % of what you paid". Null with no dividend history yet. */
+  yieldOnCost: string | null;
   currentPrice: string | null;
   priceStale: boolean;
   /** vs. the most recent prior trading day's close, whichever market
@@ -122,6 +125,11 @@ export function HoldingsTable({ holdings, cash, baseCurrency }: HoldingsTablePro
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 <Money value={holding.averageCost} currency={holding.currency} />
+                {holding.yieldOnCost && (
+                  <div className="text-xs text-muted-foreground">
+                    <Percent value={holding.yieldOnCost} /> yield
+                  </div>
+                )}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 <div className="flex items-center justify-end gap-1">

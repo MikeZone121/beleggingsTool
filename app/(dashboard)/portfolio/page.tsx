@@ -3,6 +3,7 @@ import Decimal from "decimal.js";
 import { requireUser } from "@/lib/auth/session";
 import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
+import { getDividendSnapshot } from "@/lib/dividends/dividendService";
 import { getPreviousClosePrices } from "@/lib/db/prices";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -44,10 +45,10 @@ export default async function PortfolioPage() {
       (b.marketValueBase ?? new Decimal(0)).comparedTo(a.marketValueBase ?? new Decimal(0))
     );
 
-  const previousCloses = await getPreviousClosePrices(
-    holdings.map((h) => h.securityId),
-    new Date()
-  );
+  const [previousCloses, dividendSnapshot] = await Promise.all([
+    getPreviousClosePrices(holdings.map((h) => h.securityId), new Date()),
+    getDividendSnapshot(user.id, portfolio.id),
+  ]);
 
   const holdingRows: HoldingRow[] = holdings.map((holding) => {
     const weight = snapshot.totalValue.greaterThan(0)
@@ -65,6 +66,7 @@ export default async function PortfolioPage() {
       currentPrice && previousClose && !new Decimal(previousClose).isZero()
         ? currentPrice.minus(previousClose).dividedBy(previousClose)
         : null;
+    const yieldOnCost = dividendSnapshot.yieldsBySecurity.get(holding.securityId)?.yieldOnCost ?? null;
 
     return {
       securityId: holding.securityId,
@@ -73,6 +75,7 @@ export default async function PortfolioPage() {
       currency: holding.currency,
       quantity: holding.quantity.toString(),
       averageCost: holding.averageCost.toString(),
+      yieldOnCost: yieldOnCost?.toString() ?? null,
       currentPrice: currentPrice?.toString() ?? null,
       priceStale: holding.priceStale,
       dayChangePercent: dayChangePercent?.toString() ?? null,
