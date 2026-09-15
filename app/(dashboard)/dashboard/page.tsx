@@ -8,6 +8,7 @@ import { calculateAllocation } from "@/lib/finance/allocation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
 import { RebalancingCard, type RebalancingPlanData } from "@/components/dashboard/rebalancing-card";
+import { RefreshAllButton } from "@/components/dashboard/refresh-all-button";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Money, Percent } from "@/components/ui/money";
@@ -84,11 +85,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          {portfolio.name} · base currency {baseCurrency}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            {portfolio.name} · base currency {baseCurrency}
+          </p>
+        </div>
+        <RefreshAllButton />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
