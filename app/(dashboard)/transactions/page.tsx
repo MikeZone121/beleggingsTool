@@ -33,21 +33,30 @@ export default async function TransactionsPage() {
     currency: s.currency,
   }));
 
+  const TYPES_WITH_QUANTITY_PRICE = new Set(["BUY", "SELL"]);
   const rows: TransactionRow[] = transactions
     .slice()
     .reverse()
     .map((tx) => ({
       id: tx.id,
+      accountId: tx.accountId,
       type: tx.type,
       date: tx.date.toISOString(),
+      securityId: tx.securityId,
       securityTicker: tx.security?.ticker ?? null,
+      securityName: tx.security?.name ?? null,
+      securityCurrency: tx.security?.currency ?? null,
       quantity: tx.quantity?.toString() ?? null,
       price: tx.price?.toString() ?? null,
+      // `amount` has no column of its own (see transactionAmounts.ts) — for
+      // every type that uses it, it's exactly `grossAmount`.
+      amount: TYPES_WITH_QUANTITY_PRICE.has(tx.type) ? null : tx.grossAmount.toString(),
       grossAmount: tx.grossAmount.toString(),
       fees: tx.fees.toString(),
       taxes: tx.taxes.toString(),
       netAmount: tx.netAmount.toString(),
       currency: tx.currency,
+      notes: tx.notes ?? "",
     }));
 
   return (
@@ -81,7 +90,11 @@ export default async function TransactionsPage() {
         />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
-          <TransactionsTable transactions={rows} />
+          <TransactionsTable
+            transactions={rows}
+            accounts={accountOptions}
+            securities={securityOptions}
+          />
         </div>
       )}
     </div>

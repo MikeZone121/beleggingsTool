@@ -30,6 +30,12 @@ interface TransactionFormProps {
   accounts: AccountOption[];
   securities: SecurityOption[];
   onSuccess?: () => void;
+  /** Present only when editing an existing transaction — switches the
+   * submit target from POST /api/transactions to PATCH .../[id] and
+   * pre-fills the form from `initialValues` instead of the blank
+   * defaults. */
+  transactionId?: string;
+  initialValues?: FormValues & { security: SelectedSecurity | null };
 }
 
 type FormValues = {
@@ -60,9 +66,16 @@ const defaultValues: FormValues = {
   notes: "",
 };
 
-export function TransactionForm({ accounts, securities, onSuccess }: TransactionFormProps) {
+export function TransactionForm({
+  accounts,
+  securities,
+  onSuccess,
+  transactionId,
+  initialValues,
+}: TransactionFormProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const isEditing = transactionId !== undefined;
 
   const {
     register,
@@ -77,10 +90,12 @@ export function TransactionForm({ accounts, securities, onSuccess }: Transaction
     // FormValues; runtime validation is unaffected — the server re-validates
     // with the same schema regardless (see onSubmit).
     resolver: zodResolver(transactionInputSchema) as never,
-    defaultValues: { ...defaultValues, accountId: accounts[0]?.id ?? "" },
+    defaultValues: initialValues ?? { ...defaultValues, accountId: accounts[0]?.id ?? "" },
   });
 
-  const [selectedSecurity, setSelectedSecurity] = useState<SelectedSecurity | null>(null);
+  const [selectedSecurity, setSelectedSecurity] = useState<SelectedSecurity | null>(
+    initialValues?.security ?? null
+  );
   const [knownSecurities, setKnownSecurities] = useState(securities);
 
   const type = watch("type");
@@ -114,21 +129,28 @@ export function TransactionForm({ accounts, securities, onSuccess }: Transaction
         amount: needsQuantityPrice ? null : values.amount,
       };
 
-      const response = await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        isEditing ? `/api/transactions/${transactionId}` : "/api/transactions",
+        {
+          method: isEditing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
       const result = await response.json();
 
       if (!response.ok) {
-        toast.error(result.error?.message ?? "Failed to create transaction");
+        toast.error(
+          result.error?.message ?? `Failed to ${isEditing ? "update" : "create"} transaction`
+        );
         return;
       }
 
-      toast.success("Transaction added");
-      reset({ ...defaultValues, accountId: values.accountId, currency: values.currency });
-      setSelectedSecurity(null);
+      toast.success(isEditing ? "Transaction updated" : "Transaction added");
+      if (!isEditing) {
+        reset({ ...defaultValues, accountId: values.accountId, currency: values.currency });
+        setSelectedSecurity(null);
+      }
       router.refresh();
       onSuccess?.();
     } finally {
@@ -231,7 +253,7 @@ export function TransactionForm({ accounts, securities, onSuccess }: Transaction
       </Field>
 
       <Button type="submit" disabled={submitting}>
-        {submitting ? "Saving…" : "Add transaction"}
+        {submitting ? "Saving…" : isEditing ? "Save changes" : "Add transaction"}
       </Button>
     </form>
   );
