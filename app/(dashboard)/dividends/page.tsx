@@ -5,6 +5,7 @@ import { getDividendSnapshot, getDividendCalendar } from "@/lib/dividends/divide
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
 import { MonthlyIncomeChart } from "@/components/charts/monthly-income-chart";
+import { AnnualIncomeChart } from "@/components/charts/annual-income-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -84,6 +85,12 @@ export default async function DividendsPage() {
   }));
 
   const latestGrowth = snapshot.portfolioGrowth.yoyGrowth.at(-1) ?? null;
+  const growthByYear = new Map(snapshot.portfolioGrowth.yoyGrowth.map((g) => [g.year, g.growth]));
+  const annualIncomeData = snapshot.portfolioGrowth.incomeByYear.map((y) => ({
+    year: y.year,
+    income: y.income.toNumber(),
+    growth: growthByYear.get(y.year)?.toNumber() ?? null,
+  }));
 
   const paymentHistoryRows: PaymentHistoryRow[] = snapshot.cashflows
     .slice()
@@ -165,6 +172,15 @@ export default async function DividendsPage() {
         </CardHeader>
         <CardContent>
           <MonthlyIncomeChart data={chartData} currency={baseCurrency} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Annual Income Growth</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AnnualIncomeChart data={annualIncomeData} currency={baseCurrency} />
         </CardContent>
       </Card>
 
