@@ -1,6 +1,7 @@
 import type { FinancialDataProvider } from "./types";
 import { ManualProvider } from "./manualProvider";
 import { TwelveDataProvider } from "./twelveData";
+import { YahooFinanceProvider } from "./yahooFinance";
 
 export type { FinancialDataProvider, ProviderQuote, ProviderPricePoint, ProviderDividendEvent, ProviderSecurityMatch } from "./types";
 export { ProviderError } from "./types";
@@ -22,6 +23,11 @@ export function getFinancialDataProvider(): FinancialDataProvider {
       );
     }
     cached = new TwelveDataProvider(apiKey);
+    return cached;
+  }
+
+  if (providerName === "yahoo") {
+    cached = new YahooFinanceProvider();
     return cached;
   }
 

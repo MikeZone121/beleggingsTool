@@ -49,6 +49,7 @@ export function SecuritySearchField({
   const [open, setOpen] = useState(false);
   const [rawProviderResults, setRawProviderResults] = useState<ProviderResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
   const [creatingTicker, setCreatingTicker] = useState<string | null>(null);
 
   // Below the 2-character threshold there's nothing to show — derived
@@ -61,10 +62,19 @@ export function SecuritySearchField({
 
     const handle = setTimeout(async () => {
       setSearching(true);
+      setSearchFailed(false);
       try {
         const response = await fetch(`/api/securities/search?q=${encodeURIComponent(query)}`);
         const result = await response.json();
-        setRawProviderResults(response.ok ? result.data : []);
+        if (response.ok) {
+          setRawProviderResults(result.data);
+        } else {
+          setRawProviderResults([]);
+          setSearchFailed(true);
+        }
+      } catch {
+        setRawProviderResults([]);
+        setSearchFailed(true);
       } finally {
         setSearching(false);
       }
@@ -149,9 +159,15 @@ export function SecuritySearchField({
 
       {open && q.length >= 2 && (
         <div className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-lg border bg-popover shadow-md">
-          {matchingExisting.length === 0 && newProviderResults.length === 0 && !searching && (
-            <p className="p-3 text-sm text-muted-foreground">No matches.</p>
+          {searchFailed && (
+            <p className="p-3 text-sm text-destructive">
+              Search failed — the market-data provider may be unavailable or rate-limited.
+            </p>
           )}
+          {!searchFailed &&
+            matchingExisting.length === 0 &&
+            newProviderResults.length === 0 &&
+            !searching && <p className="p-3 text-sm text-muted-foreground">No matches.</p>}
           {searching && <p className="p-3 text-sm text-muted-foreground">Searching…</p>}
 
           {matchingExisting.map((s) => (
