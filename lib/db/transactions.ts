@@ -14,6 +14,20 @@ export async function listDistinctTransactionCurrencies(): Promise<string[]> {
   return rows.map((r) => r.currency);
 }
 
+/** Earliest transaction date referencing a given security, across every
+ * portfolio — unscoped by user, like `listSecurities`. Feeds the
+ * historical price backfill (see `lib/portfolio/priceHistorySyncService.ts`),
+ * which needs to know how far back a security's daily price history must
+ * reach to cover its own first transaction. */
+export async function getEarliestTransactionDateForSecurity(securityId: string): Promise<Date | null> {
+  const row = await prisma.transaction.findFirst({
+    where: { securityId },
+    orderBy: { date: "asc" },
+    select: { date: true },
+  });
+  return row?.date ?? null;
+}
+
 /** Earliest transaction date recorded in a given currency, across every
  * portfolio — like `listSecurities`, intentionally unscoped by user: it
  * feeds the background FX-rate backfill (see
