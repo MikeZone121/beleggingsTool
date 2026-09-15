@@ -19,6 +19,14 @@ export async function getPortfolioById(userId: string, portfolioId: string) {
   });
 }
 
+/** Every portfolio, across every user — intentionally unscoped, unlike
+ * every other query in this file: the scheduled dividend-sync job (see
+ * `app/api/cron/sync-dividends/route.ts`) has no single user's session to
+ * scope to, since it runs for everyone. */
+export async function listAllPortfolios() {
+  return prisma.portfolio.findMany({ select: { id: true, userId: true } });
+}
+
 /** Every distinct base currency in use across all portfolios — like
  * `listSecurities`, intentionally unscoped by user: it feeds the background
  * FX-rate refresh (see `lib/portfolio/fxRefreshService.ts`), which populates

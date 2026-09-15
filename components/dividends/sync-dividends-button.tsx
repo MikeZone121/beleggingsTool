@@ -19,12 +19,13 @@ export function SyncDividendsButton() {
         toast.error(result.error?.message ?? "Failed to sync dividend history");
         return;
       }
-      const { provider, updated, failed, skipped, errors } = result.data as {
+      const { provider, updated, failed, skipped, errors, transactions } = result.data as {
         provider: string;
         updated: number;
         failed: number;
         skipped: number;
         errors: Array<{ ticker: string; message: string }>;
+        transactions: { created: number; failed: number; skippedAmbiguousAccount: number };
       };
       if (provider === "manual") {
         toast.info("No market-data provider configured — dividend history can't be synced.");
@@ -38,8 +39,18 @@ export function SyncDividendsButton() {
           description: errors.length > 3 ? `${preview}\n…and ${errors.length - 3} more` : preview,
           duration: 15000,
         });
+      } else if (transactions.created > 0) {
+        toast.success(
+          `Synced ${updated} securit${updated === 1 ? "y" : "ies"} — added ${transactions.created} dividend transaction${transactions.created === 1 ? "" : "s"} from confirmed payouts`
+        );
       } else {
         toast.success(`Synced dividend history for ${updated} security${updated === 1 ? "" : "ies"}`);
+      }
+      if (transactions.failed > 0) {
+        console.error(
+          `${transactions.failed} auto-dividend transaction(s) failed to create`,
+          transactions
+        );
       }
       router.refresh();
     } finally {
