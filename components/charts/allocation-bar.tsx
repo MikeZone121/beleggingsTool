@@ -3,6 +3,7 @@
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/format";
+import { usePrivacyMode } from "@/components/privacy-mode-provider";
 
 /** Fixed categorical fill order — see app/globals.css `--chart-1..8`
  * (validated palette, dataviz skill). Assign by category IDENTITY where a
@@ -59,7 +60,8 @@ function foldToTopSlots(buckets: AllocationChartBucket[]): AllocationChartBucket
  * reassigns the colors of the ones that remain.
  */
 export function AllocationBar({ buckets, currency, identityOrder }: AllocationBarProps) {
-  const formatValue = (value: number) => formatCurrency(value, currency);
+  const { hidden } = usePrivacyMode();
+  const formatValue = (value: number) => (hidden ? "•••••" : formatCurrency(value, currency));
   if (buckets.length === 0) {
     return <p className="text-sm text-muted-foreground">No data available.</p>;
   }

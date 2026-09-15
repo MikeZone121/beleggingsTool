@@ -8,7 +8,8 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatPercent, pnlTone } from "@/lib/utils/format";
+import { Money, Percent } from "@/components/ui/money";
+import { pnlTone } from "@/lib/utils/format";
 import type { AllocationChartBucket } from "@/components/charts/allocation-bar";
 
 export default async function DashboardPage() {
@@ -68,7 +69,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label="Portfolio Value"
-          value={formatCurrency(snapshot.totalValue, baseCurrency)}
+          value={<Money value={snapshot.totalValue.toString()} currency={baseCurrency} />}
           sublabel={
             snapshot.cashBalance.hasMissingFx
               ? "Incomplete — missing FX rate"
@@ -77,7 +78,9 @@ export default async function DashboardPage() {
         />
         <KpiCard
           label="Cash Balance"
-          value={formatCurrency(snapshot.cashBalance.balanceBase, baseCurrency)}
+          value={
+            <Money value={snapshot.cashBalance.balanceBase.toString()} currency={baseCurrency} />
+          }
           sublabel={
             snapshot.cashBalance.hasExcludedTransactions
               ? "Excludes TRANSFER/OTHER transactions"
@@ -86,17 +89,34 @@ export default async function DashboardPage() {
         />
         <KpiCard
           label="Unrealized P&L"
-          value={formatCurrency(snapshot.totalUnrealizedPnL, baseCurrency, { signDisplay: "always" })}
-          sublabel={returnPercent ? formatPercent(returnPercent, { signDisplay: "always" }) : undefined}
+          value={
+            <Money
+              value={snapshot.totalUnrealizedPnL.toString()}
+              currency={baseCurrency}
+              signDisplay="always"
+            />
+          }
+          sublabel={
+            returnPercent ? <Percent value={returnPercent.toString()} signDisplay="always" /> : undefined
+          }
           tone={pnlTone(snapshot.totalUnrealizedPnL)}
         />
         <KpiCard
           label="Realized P&L"
-          value={formatCurrency(snapshot.totalRealizedPnL, baseCurrency, { signDisplay: "always" })}
+          value={
+            <Money
+              value={snapshot.totalRealizedPnL.toString()}
+              currency={baseCurrency}
+              signDisplay="always"
+            />
+          }
           sublabel={snapshot.realizedPnLHasMissingFx ? "Incomplete — missing FX rate for a sale" : undefined}
           tone={pnlTone(snapshot.totalRealizedPnL)}
         />
-        <KpiCard label="Cost Basis" value={formatCurrency(snapshot.totalCostBasis, baseCurrency)} />
+        <KpiCard
+          label="Cost Basis"
+          value={<Money value={snapshot.totalCostBasis.toString()} currency={baseCurrency} />}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -125,8 +145,12 @@ export default async function DashboardPage() {
                     <div className="text-muted-foreground">{holding.name}</div>
                   </div>
                   <div className="text-right tabular-nums">
-                    <div>{formatCurrency(holding.marketValueBase, baseCurrency)}</div>
-                    <div className="text-muted-foreground">{formatCurrency(holding.marketValue, holding.currency)}</div>
+                    <div>
+                      <Money value={holding.marketValueBase?.toString()} currency={baseCurrency} />
+                    </div>
+                    <div className="text-muted-foreground">
+                      <Money value={holding.marketValue?.toString()} currency={holding.currency} />
+                    </div>
                   </div>
                 </div>
               ))}

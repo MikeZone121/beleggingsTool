@@ -57,13 +57,13 @@ async function main() {
   });
 
   const asml = await prisma.security.upsert({
-    where: { ticker_exchange: { ticker: "ASML", exchange: "AMS" } },
+    where: { ticker_exchange: { ticker: "ASML", exchange: "Euronext" } },
     create: {
       ticker: "ASML",
       name: "ASML Holding N.V.",
       isin: "NL0010273215",
       assetType: "STOCK",
-      exchange: "AMS",
+      exchange: "Euronext",
       currency: "EUR",
       country: "NL",
       sector: "Technology",
@@ -91,13 +91,13 @@ async function main() {
   });
 
   const vwce = await prisma.security.upsert({
-    where: { ticker_exchange: { ticker: "VWCE", exchange: "AMS" } },
+    where: { ticker_exchange: { ticker: "VWCE", exchange: "Euronext" } },
     create: {
       ticker: "VWCE",
       name: "Vanguard FTSE All-World UCITS ETF",
       isin: "IE00BK5BQT80",
       assetType: "ETF",
-      exchange: "AMS",
+      exchange: "Euronext",
       currency: "EUR",
       country: "IE",
       sector: null,

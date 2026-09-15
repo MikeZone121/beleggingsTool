@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCurrency } from "@/lib/utils/format";
+import { usePrivacyMode } from "@/components/privacy-mode-provider";
 
 export interface MonthlyIncomePoint {
   periodKey: string;
@@ -20,8 +21,18 @@ interface MonthlyIncomeChartProps {
  * colors per bar — see the dataviz skill's form guidance).
  */
 export function MonthlyIncomeChart({ data, currency }: MonthlyIncomeChartProps) {
+  const { hidden } = usePrivacyMode();
+
   if (data.length === 0) {
     return <p className="text-sm text-muted-foreground">No dividend income yet.</p>;
+  }
+
+  if (hidden) {
+    return (
+      <div className="flex h-[220px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+        Hidden while privacy mode is on
+      </div>
+    );
   }
 
   return (

@@ -4,14 +4,17 @@ import { compare } from "bcryptjs";
 import { prisma } from "@/lib/db/client";
 
 /**
- * MVP auth: a single credentials-based user, matched against the seeded
- * `User` row (see prisma/seed.ts). Every DB query elsewhere in the app is
- * still scoped by `userId` as if multiple users existed, so switching to a
- * real multi-user provider later only touches this file.
+ * Credentials auth backed by real `User` rows — registration is invite-only
+ * (see lib/auth/signupPolicy.ts), not open signup. Every DB query elsewhere
+ * in the app is scoped by `userId`, so this supports any number of users
+ * without further changes.
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  // Required behind a reverse proxy (Vercel, etc.) so Auth.js trusts the
+  // forwarded host/proto headers instead of rejecting the request.
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {

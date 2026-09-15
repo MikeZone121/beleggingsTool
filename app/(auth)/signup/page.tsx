@@ -3,24 +3,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { login } from "./actions";
+import { signup } from "./actions";
 
-interface LoginPageProps {
+interface SignupPageProps {
   searchParams: Promise<{ error?: string }>;
 }
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
+export default async function SignupPage({ searchParams }: SignupPageProps) {
   const { error } = await searchParams;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">Sign in</CardTitle>
-          <CardDescription>Access your portfolio dashboard.</CardDescription>
+          <CardTitle className="text-xl">Create your account</CardTitle>
+          <CardDescription>
+            Signup is invite-only — your email must be pre-authorized.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={login} className="flex flex-col gap-4">
+          <form action={signup} className="flex flex-col gap-4">
+            <Field>
+              <FieldLabel htmlFor="name">Name</FieldLabel>
+              <Input id="name" name="name" autoComplete="name" required />
+            </Field>
             <Field>
               <FieldLabel htmlFor="email">Email</FieldLabel>
               <Input id="email" name="email" type="email" autoComplete="email" required />
@@ -31,19 +37,30 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
+                minLength={8}
                 required
               />
             </Field>
-            {error && <FieldError>Invalid email or password.</FieldError>}
+            <Field>
+              <FieldLabel htmlFor="baseCurrency">Base currency</FieldLabel>
+              <Input
+                id="baseCurrency"
+                name="baseCurrency"
+                defaultValue="EUR"
+                maxLength={3}
+                className="uppercase"
+              />
+            </Field>
+            {error && <FieldError>{error}</FieldError>}
             <Button type="submit" className="mt-2 w-full">
-              Sign in
+              Create account
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Invited to sign up?{" "}
-            <Link href="/signup" className="text-primary underline-offset-4 hover:underline">
-              Create an account
+            Already have an account?{" "}
+            <Link href="/login" className="text-primary underline-offset-4 hover:underline">
+              Sign in
             </Link>
           </p>
         </CardContent>

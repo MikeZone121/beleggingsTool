@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface KpiCardProps {
   label: string;
-  value: string;
-  sublabel?: string;
+  value: ReactNode;
+  sublabel?: ReactNode;
   tone?: "neutral" | "positive" | "negative";
 }
 

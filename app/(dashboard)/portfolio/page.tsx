@@ -14,8 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency, formatPercent, formatQuantity, pnlTone } from "@/lib/utils/format";
+import { pnlTone } from "@/lib/utils/format";
+import { Money, Percent, Quantity } from "@/components/ui/money";
 import { EditPricePopover } from "@/components/securities/edit-price-popover";
+import { RefreshPricesButton } from "@/components/securities/refresh-prices-button";
 
 export default async function PortfolioPage() {
   const user = await requireUser();
@@ -50,11 +52,14 @@ export default async function PortfolioPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Portfolio</h1>
-        <p className="text-sm text-muted-foreground">
-          {holdings.length} holding{holdings.length === 1 ? "" : "s"} · {portfolio.name}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Portfolio</h1>
+          <p className="text-sm text-muted-foreground">
+            {holdings.length} holding{holdings.length === 1 ? "" : "s"} · {portfolio.name}
+          </p>
+        </div>
+        <RefreshPricesButton />
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
@@ -95,20 +100,18 @@ export default async function PortfolioPage() {
                     <div className="text-xs text-muted-foreground">{holding.name}</div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatQuantity(holding.quantity)}
+                    <Quantity value={holding.quantity.toString()} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatCurrency(holding.averageCost, holding.currency)}
+                    <Money value={holding.averageCost.toString()} currency={holding.currency} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     <div className="flex items-center justify-end gap-1">
                       {holding.marketValue ? (
-                        <span>
-                          {formatCurrency(
-                            holding.marketValue.dividedBy(holding.quantity),
-                            holding.currency
-                          )}
-                        </span>
+                        <Money
+                          value={holding.marketValue.dividedBy(holding.quantity).toString()}
+                          currency={holding.currency}
+                        />
                       ) : (
                         <Badge variant="secondary">no price</Badge>
                       )}
@@ -128,16 +131,24 @@ export default async function PortfolioPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatCurrency(holding.marketValueBase, baseCurrency)}
+                    <Money value={holding.marketValueBase?.toString()} currency={baseCurrency} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {weight ? formatPercent(weight) : "—"}
+                    {weight ? <Percent value={weight.toString()} /> : "—"}
                   </TableCell>
                   <TableCell className={`text-right tabular-nums ${pnlToneClass}`}>
-                    {formatCurrency(holding.unrealizedPnLBase, baseCurrency, { signDisplay: "always" })}
+                    <Money
+                      value={holding.unrealizedPnLBase?.toString()}
+                      currency={baseCurrency}
+                      signDisplay="always"
+                    />
                   </TableCell>
                   <TableCell className={`text-right tabular-nums ${pnlToneClass}`}>
-                    {returnPercent ? formatPercent(returnPercent, { signDisplay: "always" }) : "—"}
+                    {returnPercent ? (
+                      <Percent value={returnPercent.toString()} signDisplay="always" />
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                 </TableRow>
               );

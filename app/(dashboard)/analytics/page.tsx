@@ -3,7 +3,8 @@ import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { getPerformanceSnapshot } from "@/lib/performance/performanceService";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
-import { formatCurrency, formatPercent, pnlTone } from "@/lib/utils/format";
+import { pnlTone } from "@/lib/utils/format";
+import { Money, Percent } from "@/components/ui/money";
 
 export default async function AnalyticsPage() {
   const user = await requireUser();
@@ -25,23 +26,33 @@ export default async function AnalyticsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label="Money-Weighted Return (XIRR)"
-          value={performance.xirr ? formatPercent(performance.xirr, { signDisplay: "always" }) : "Not computable"}
+          value={
+            performance.xirr ? (
+              <Percent value={performance.xirr.toString()} signDisplay="always" />
+            ) : (
+              "Not computable"
+            )
+          }
           sublabel="Annualized, accounts for the timing of deposits/withdrawals"
           tone={pnlTone(performance.xirr)}
         />
         <KpiCard
           label="Total Return"
           value={
-            performance.totalReturn
-              ? formatPercent(performance.totalReturn, { signDisplay: "always" })
-              : "Not computable"
+            performance.totalReturn ? (
+              <Percent value={performance.totalReturn.toString()} signDisplay="always" />
+            ) : (
+              "Not computable"
+            )
           }
           sublabel="Ending value vs. net cash contributed"
           tone={pnlTone(performance.totalReturn)}
         />
         <KpiCard
           label="Net Cash Contributed"
-          value={formatCurrency(performance.netExternalCashIn, performance.baseCurrency)}
+          value={
+            <Money value={performance.netExternalCashIn.toString()} currency={performance.baseCurrency} />
+          }
           sublabel={performance.hasMissingFx ? "Incomplete — missing FX rate" : "Deposits minus withdrawals"}
         />
       </div>

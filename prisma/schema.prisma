@@ -97,6 +97,8 @@ model Security {
   name             String
   isin             String?
   assetType        AssetType
+  /// Passed through as-is to the configured FinancialDataProvider (e.g.
+  /// Twelve Data expects "Euronext", "NASDAQ" — not a MIC code or ISO name).
   exchange         String?
   currency         String
   country          String?

@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth/session";
 import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChangePasswordForm } from "@/components/settings/change-password-form";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -23,6 +24,15 @@ export default async function SettingsPage() {
             <div className="text-muted-foreground">Email</div>
             <div>{user.email}</div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Security</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
         </CardContent>
       </Card>
 

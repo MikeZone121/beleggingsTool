@@ -14,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatQuantity } from "@/lib/utils/format";
+import { formatDate } from "@/lib/utils/format";
+import { Money, Quantity } from "@/components/ui/money";
 
 export interface TransactionRow {
   id: string;
@@ -69,13 +70,13 @@ export function TransactionsTable({ transactions }: { transactions: TransactionR
             </TableCell>
             <TableCell>{tx.securityTicker ?? "—"}</TableCell>
             <TableCell className="text-right tabular-nums">
-              {tx.quantity ? formatQuantity(tx.quantity) : "—"}
+              {tx.quantity ? <Quantity value={tx.quantity} /> : "—"}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {tx.price ? formatCurrency(tx.price, tx.currency) : "—"}
+              {tx.price ? <Money value={tx.price} currency={tx.currency} /> : "—"}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {formatCurrency(tx.netAmount, tx.currency)}
+              <Money value={tx.netAmount} currency={tx.currency} />
             </TableCell>
             <TableCell>
               <Button

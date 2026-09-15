@@ -14,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatPercent } from "@/lib/utils/format";
+import { formatDate } from "@/lib/utils/format";
+import { Money, Percent } from "@/components/ui/money";
 
 const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -70,15 +71,20 @@ export default async function DividendsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Trailing 12-Month Income"
-          value={formatCurrency(snapshot.ttmIncome.total, baseCurrency)}
+          value={<Money value={snapshot.ttmIncome.total.toString()} currency={baseCurrency} />}
           sublabel={snapshot.ttmIncome.hasMissingFx ? "Incomplete — missing FX rate" : undefined}
         />
         <KpiCard
           label="Latest Full-Year Income"
           value={
-            snapshot.portfolioGrowth.incomeByYear.length > 0
-              ? formatCurrency(snapshot.portfolioGrowth.incomeByYear.at(-1)!.income, baseCurrency)
-              : "—"
+            snapshot.portfolioGrowth.incomeByYear.length > 0 ? (
+              <Money
+                value={snapshot.portfolioGrowth.incomeByYear.at(-1)!.income.toString()}
+                currency={baseCurrency}
+              />
+            ) : (
+              "—"
+            )
           }
           sublabel={
             snapshot.portfolioGrowth.incomeByYear.length > 0
@@ -88,12 +94,24 @@ export default async function DividendsPage() {
         />
         <KpiCard
           label="YoY Growth"
-          value={latestGrowth?.growth ? formatPercent(latestGrowth.growth, { signDisplay: "always" }) : "—"}
+          value={
+            latestGrowth?.growth ? (
+              <Percent value={latestGrowth.growth.toString()} signDisplay="always" />
+            ) : (
+              "—"
+            )
+          }
           sublabel={latestGrowth ? `vs ${latestGrowth.year - 1}` : "Needs 2 full years"}
         />
         <KpiCard
           label="CAGR"
-          value={snapshot.portfolioGrowth.cagr ? formatPercent(snapshot.portfolioGrowth.cagr) : "—"}
+          value={
+            snapshot.portfolioGrowth.cagr ? (
+              <Percent value={snapshot.portfolioGrowth.cagr.toString()} />
+            ) : (
+              "—"
+            )
+          }
           sublabel="Across full-year history"
         />
       </div>
@@ -118,10 +136,10 @@ export default async function DividendsPage() {
                 <TableRow key={securityId}>
                   <TableCell>{tickerBySecurityId.get(securityId) ?? securityId}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {y.currentYield ? formatPercent(y.currentYield) : "—"}
+                    {y.currentYield ? <Percent value={y.currentYield.toString()} /> : "—"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {y.yieldOnCost ? formatPercent(y.yieldOnCost) : "—"}
+                    {y.yieldOnCost ? <Percent value={y.yieldOnCost.toString()} /> : "—"}
                   </TableCell>
                 </TableRow>
               ))}
@@ -150,13 +168,13 @@ export default async function DividendsPage() {
                   <TableCell>{formatDate(cf.date)}</TableCell>
                   <TableCell>{tickerBySecurityId.get(cf.securityId) ?? cf.securityId}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatCurrency(cf.grossAmount, cf.currency)}
+                    <Money value={cf.grossAmount.toString()} currency={cf.currency} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatCurrency(cf.taxes, cf.currency)}
+                    <Money value={cf.taxes.toString()} currency={cf.currency} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatCurrency(cf.netAmount, cf.currency)}
+                    <Money value={cf.netAmount.toString()} currency={cf.currency} />
                     {cf.netAmountBase === null && (
                       <Badge variant="secondary" className="ml-2">
                         no FX

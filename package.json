@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma migrate deploy && next build",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
