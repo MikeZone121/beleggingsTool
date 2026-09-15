@@ -1,5 +1,6 @@
 import { listSecurities, updateSecurityPrice } from "@/lib/db/securities";
 import { getFinancialDataProvider, ProviderError } from "@/lib/providers/financialData";
+import { refreshExchangeRates } from "./fxRefreshService";
 
 export interface PriceRefreshSummary {
   provider: string;
@@ -11,9 +12,18 @@ export interface PriceRefreshSummary {
 
 /**
  * Refreshes `currentPrice`/`priceUpdatedAt` for every security from the
- * configured `FinancialDataProvider`. With the default `manual` provider
- * this is a no-op (every quote comes back null) — manual price entry via
- * `EditPricePopover` keeps working exactly as before.
+ * configured `FinancialDataProvider`, then the `ExchangeRate` table (see
+ * `refreshExchangeRates`) so foreign-currency holdings' base-currency
+ * market value stays computable — a stale/missing FX rate otherwise makes
+ * `deriveHoldings` drop that holding's value entirely (`marketValueBase:
+ * null`), which surfaces as a misleadingly large negative cash weight
+ * rather than an obvious "FX rate missing" message. Counts from both are
+ * merged into one summary since the "Refresh Prices" button is the only
+ * entry point for either.
+ *
+ * With the default `manual` provider this is a no-op (every quote comes
+ * back null) — manual price entry via `EditPricePopover` keeps working
+ * exactly as before.
  *
  * Runs sequentially (not `Promise.all`) to respect the provider's rate
  * limit rather than bursting requests.
@@ -64,5 +74,13 @@ export async function refreshAllPrices(): Promise<PriceRefreshSummary> {
     }
   }
 
-  return { provider: provider.name, updated, failed, skipped, errors };
+  const fx = await refreshExchangeRates();
+
+  return {
+    provider: provider.name,
+    updated: updated + fx.updated,
+    failed: failed + fx.failed,
+    skipped: skipped + fx.skipped,
+    errors: [...errors, ...fx.errors.map((e) => ({ ticker: e.pair, message: e.message }))],
+  };
 }

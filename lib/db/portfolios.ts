@@ -19,6 +19,18 @@ export async function getPortfolioById(userId: string, portfolioId: string) {
   });
 }
 
+/** Every distinct base currency in use across all portfolios — like
+ * `listSecurities`, intentionally unscoped by user: it feeds the background
+ * FX-rate refresh (see `lib/portfolio/fxRefreshService.ts`), which populates
+ * a shared reference table, not user-specific data. */
+export async function listDistinctBaseCurrencies(): Promise<string[]> {
+  const rows = await prisma.portfolio.findMany({
+    distinct: ["baseCurrency"],
+    select: { baseCurrency: true },
+  });
+  return rows.map((r) => r.baseCurrency);
+}
+
 export async function createPortfolio(
   userId: string,
   data: { name: string; baseCurrency: string; isDefault?: boolean }
