@@ -20,6 +20,19 @@ export async function removeFromWatchlist(userId: string, id: string) {
   return prisma.watchlistItem.deleteMany({ where: { id, userId } });
 }
 
+/** Distinct securities on *any* user's watchlist — `Price` history is
+ * shared/global data, not per-user, so this doesn't need a `userId`. Used
+ * to backfill price history for watched-but-not-owned securities (see
+ * priceHistorySyncService.ts), which otherwise have no transactions to
+ * anchor a backfill to. */
+export async function listWatchedSecurityIds(): Promise<string[]> {
+  const rows = await prisma.watchlistItem.findMany({
+    select: { securityId: true },
+    distinct: ["securityId"],
+  });
+  return rows.map((r) => r.securityId);
+}
+
 /** `targetPrice: null` clears the alert. */
 export async function setWatchlistTargetPrice(
   userId: string,

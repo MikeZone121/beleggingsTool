@@ -1,6 +1,7 @@
 import { listSecurities } from "@/lib/db/securities";
 import { getEarliestTransactionDateForSecurity } from "@/lib/db/transactions";
 import { getEarliestPriceDate, upsertPrice } from "@/lib/db/prices";
+import { listWatchedSecurityIds } from "@/lib/db/watchlist";
 import { getFinancialDataProvider, ProviderError } from "@/lib/providers/financialData";
 
 export interface PriceHistorySyncSummary {
@@ -17,6 +18,11 @@ const DAY_MS = 86_400_000;
  * cached series starts exactly on the first date it's ever queried for, and
  * that date wasn't a trading day (weekend/holiday). */
 const LOOKBACK_PADDING_DAYS = 10;
+/** A watchlist-only security has no transaction to anchor a backfill to —
+ * it just needs enough recent history for "day-over-day change" (see
+ * getPreviousClosePrices), so fall back to a fixed recent window instead
+ * of skipping it entirely. */
+const WATCHLIST_LOOKBACK_DAYS = 14;
 
 /**
  * Backfills the `Price` table (unused until now) with each traded
@@ -28,13 +34,21 @@ const LOOKBACK_PADDING_DAYS = 10;
  * pattern as `refreshExchangeRates`, so this stays cheap after the first
  * run.
  *
- * A security with no transactions yet is skipped — there's nothing to
- * reconstruct history for. With the default `manual` provider this is a
- * no-op, same as `refreshAllPrices`.
+ * Also covers securities that are only on a watchlist (no transactions at
+ * all) — otherwise their day-over-day change on the Watchlist page has
+ * nothing to compare against and permanently shows "—".
+ *
+ * A security with neither a transaction nor a watchlist entry is skipped
+ * — there's nothing to reconstruct history for. With the default `manual`
+ * provider this is a no-op, same as `refreshAllPrices`.
  */
 export async function syncPriceHistory(): Promise<PriceHistorySyncSummary> {
   const provider = getFinancialDataProvider();
-  const securities = await listSecurities();
+  const [securities, watchedSecurityIds] = await Promise.all([
+    listSecurities(),
+    listWatchedSecurityIds(),
+  ]);
+  const watchedSet = new Set(watchedSecurityIds);
 
   let updated = 0;
   let failed = 0;
@@ -43,7 +57,12 @@ export async function syncPriceHistory(): Promise<PriceHistorySyncSummary> {
   const today = new Date();
 
   for (const security of securities) {
-    const earliestNeeded = await getEarliestTransactionDateForSecurity(security.id);
+    const earliestTransactionDate = await getEarliestTransactionDateForSecurity(security.id);
+    const earliestNeeded =
+      earliestTransactionDate ??
+      (watchedSet.has(security.id)
+        ? new Date(today.getTime() - WATCHLIST_LOOKBACK_DAYS * DAY_MS)
+        : null);
     if (!earliestNeeded) {
       skipped += 1;
       continue;
