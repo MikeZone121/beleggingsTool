@@ -5,6 +5,7 @@ import { getDividendSnapshot, getDividendCalendar } from "@/lib/dividends/divide
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
 import { MonthlyIncomeChart } from "@/components/charts/monthly-income-chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -49,12 +50,16 @@ export default async function DividendsPage() {
     ticker: row.ticker,
     name: row.name,
     currency: row.currency,
+    quantity: row.quantity.toString(),
     lastExDate: row.estimate.lastExDate.toISOString(),
     lastAmountPerShare: row.estimate.lastAmountPerShare.toString(),
     estimatedNextExDate: row.estimate.estimatedNextExDate.toISOString(),
     estimatedAmountPerShare: row.estimate.estimatedAmountPerShare.toString(),
     estimatedIntervalDays: row.estimate.estimatedIntervalDays,
     paymentsOnRecord: row.estimate.paymentsOnRecord,
+    grossBase: row.payout.grossBase?.toString() ?? null,
+    taxBase: row.payout.taxBase?.toString() ?? null,
+    netBase: row.payout.netBase?.toString() ?? null,
   }));
 
   if (snapshot.cashflows.length === 0) {
@@ -64,7 +69,7 @@ export default async function DividendsPage() {
           <h1 className="text-2xl font-semibold">Dividends</h1>
           <SyncDividendsButton />
         </div>
-        <DividendCalendar rows={calendarData} />
+        <DividendCalendar rows={calendarData} baseCurrency={baseCurrency} />
         <EmptyState
           title="No dividend income yet"
           description="Record a DIVIDEND transaction to start tracking your dividend income, yield, and growth."
@@ -91,7 +96,7 @@ export default async function DividendsPage() {
         <SyncDividendsButton />
       </div>
 
-      <DividendCalendar rows={calendarData} />
+      <DividendCalendar rows={calendarData} baseCurrency={baseCurrency} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
@@ -141,75 +146,85 @@ export default async function DividendsPage() {
         />
       </div>
 
-      <div className="rounded-lg border p-4">
-        <h2 className="mb-4 text-sm font-medium">Monthly Income</h2>
-        <MonthlyIncomeChart data={chartData} currency={baseCurrency} />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Monthly Income</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MonthlyIncomeChart data={chartData} currency={baseCurrency} />
+        </CardContent>
+      </Card>
 
       {snapshot.yieldsBySecurity.size > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">Yield by Holding</h2>
+          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Security</TableHead>
+                  <TableHead className="text-right">Current Yield</TableHead>
+                  <TableHead className="text-right">Yield on Cost</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from(snapshot.yieldsBySecurity.entries()).map(([securityId, y]) => (
+                  <TableRow key={securityId}>
+                    <TableCell>{tickerBySecurityId.get(securityId) ?? securityId}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {y.currentYield ? <Percent value={y.currentYield.toString()} /> : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {y.yieldOnCost ? <Percent value={y.yieldOnCost.toString()} /> : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">Payment History</h2>
         <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Date</TableHead>
                 <TableHead>Security</TableHead>
-                <TableHead className="text-right">Current Yield</TableHead>
-                <TableHead className="text-right">Yield on Cost</TableHead>
+                <TableHead className="text-right">Gross</TableHead>
+                <TableHead className="text-right">Tax</TableHead>
+                <TableHead className="text-right">Net</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Array.from(snapshot.yieldsBySecurity.entries()).map(([securityId, y]) => (
-                <TableRow key={securityId}>
-                  <TableCell>{tickerBySecurityId.get(securityId) ?? securityId}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {y.currentYield ? <Percent value={y.currentYield.toString()} /> : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {y.yieldOnCost ? <Percent value={y.yieldOnCost.toString()} /> : "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {snapshot.cashflows
+                .slice()
+                .reverse()
+                .map((cf) => (
+                  <TableRow key={cf.transactionId}>
+                    <TableCell>{formatDate(cf.date)}</TableCell>
+                    <TableCell>{tickerBySecurityId.get(cf.securityId) ?? cf.securityId}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <Money value={cf.grossAmount.toString()} currency={cf.currency} />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <Money value={cf.taxes.toString()} currency={cf.currency} />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <Money value={cf.netAmount.toString()} currency={cf.currency} />
+                      {cf.netAmountBase === null && (
+                        <Badge variant="secondary" className="ml-2">
+                          no FX
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
-      )}
-
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Security</TableHead>
-              <TableHead className="text-right">Gross</TableHead>
-              <TableHead className="text-right">Tax</TableHead>
-              <TableHead className="text-right">Net</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {snapshot.cashflows
-              .slice()
-              .reverse()
-              .map((cf) => (
-                <TableRow key={cf.transactionId}>
-                  <TableCell>{formatDate(cf.date)}</TableCell>
-                  <TableCell>{tickerBySecurityId.get(cf.securityId) ?? cf.securityId}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <Money value={cf.grossAmount.toString()} currency={cf.currency} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <Money value={cf.taxes.toString()} currency={cf.currency} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <Money value={cf.netAmount.toString()} currency={cf.currency} />
-                    {cf.netAmountBase === null && (
-                      <Badge variant="secondary" className="ml-2">
-                        no FX
-                      </Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
       </div>
     </div>
   );

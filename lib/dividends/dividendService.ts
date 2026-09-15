@@ -12,7 +12,13 @@ import {
   calculateDividendGrowth,
   type PeriodIncome,
 } from "@/lib/finance/dividendMetrics";
-import { estimateNextDividend, type EstimatedDividend } from "@/lib/finance/dividendCalendar";
+import {
+  estimateNextDividend,
+  estimateBelgianDividendPayout,
+  type EstimatedDividend,
+  type EstimatedDividendPayout,
+} from "@/lib/finance/dividendCalendar";
+import { convertToBase } from "@/lib/finance/currency";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
 import type { DividendCashflow, DividendYieldResult, DividendGrowthResult } from "@/types/domain";
 
@@ -90,7 +96,12 @@ export interface DividendCalendarRow {
   ticker: string;
   name: string;
   currency: string;
+  quantity: Decimal;
   estimate: EstimatedDividend;
+  /** The next projected payout for the quantity currently held, converted
+   * to the portfolio's base currency and, from there, split into gross/
+   * Belgian-withholding-tax/net (see `estimateBelgianDividendPayout`). */
+  payout: EstimatedDividendPayout;
 }
 
 /**
@@ -103,6 +114,11 @@ export async function getDividendCalendar(
   userId: string,
   portfolioId: string
 ): Promise<DividendCalendarRow[]> {
+  const portfolio = await getPortfolioById(userId, portfolioId);
+  if (!portfolio) {
+    throw new Error("Portfolio not found");
+  }
+
   const snapshot = await getPortfolioSnapshot(userId, portfolioId);
   const heldHoldings = snapshot.holdings.filter((h) => h.quantity.greaterThan(0));
 
@@ -114,16 +130,32 @@ export async function getDividendCalendar(
     historyBySecurity.set(row.securityId, list);
   }
 
+  const fxRateRows = await listExchangeRates();
+  const fxRates = fxRateRows.map(toFxRate);
+  const today = new Date();
+
   const calendar: DividendCalendarRow[] = [];
   for (const holding of heldHoldings) {
     const estimate = estimateNextDividend(historyBySecurity.get(holding.securityId) ?? []);
     if (!estimate) continue;
+
+    const grossOwnCurrency = estimate.estimatedAmountPerShare.times(holding.quantity);
+    const grossBase = convertToBase(
+      grossOwnCurrency,
+      holding.currency,
+      portfolio.baseCurrency,
+      today,
+      fxRates
+    );
+
     calendar.push({
       securityId: holding.securityId,
       ticker: holding.ticker,
       name: holding.name,
       currency: holding.currency,
+      quantity: holding.quantity,
       estimate,
+      payout: estimateBelgianDividendPayout(grossBase),
     });
   }
 

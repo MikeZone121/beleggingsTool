@@ -20,6 +20,38 @@ const DAY_MS = 86_400_000;
 const DEFAULT_INTERVAL_DAYS = 91;
 
 /**
+ * Belgian "roerende voorheffing" — the flat withholding tax on dividend
+ * (and other movable) income, applied by the paying broker before payout.
+ * This is a simplification for an *estimate*: it ignores the annual
+ * tax-free allowance on dividend income (claimed back via the tax return,
+ * not withheld at source) and any foreign withholding tax already deducted
+ * abroad (e.g. the US's 15% under the tax treaty) — both would reduce the
+ * effective Belgian tax below this flat rate for at least some of a real
+ * dividend. Treat this net figure as a lower-bound estimate, not a filing.
+ */
+export const BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE = new Decimal("0.30");
+
+export interface EstimatedDividendPayout {
+  /** Total gross estimated payout in the portfolio's base currency — null
+   * when there's no FX rate to convert the security's own currency. */
+  grossBase: Decimal | null;
+  taxBase: Decimal | null;
+  netBase: Decimal | null;
+}
+
+/** Applies the flat Belgian withholding rate to a gross amount already
+ * converted to the base currency — kept separate from the FX conversion
+ * itself (done by the caller, which has the FX rate table) so this stays a
+ * pure, easily-testable function. */
+export function estimateBelgianDividendPayout(grossBase: Decimal | null): EstimatedDividendPayout {
+  if (grossBase === null) {
+    return { grossBase: null, taxBase: null, netBase: null };
+  }
+  const taxBase = grossBase.times(BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE);
+  return { grossBase, taxBase, netBase: grossBase.minus(taxBase) };
+}
+
+/**
  * Projects the next ex-dividend date/amount for a security from its paid
  * history — there is no confirmed "next" date here (see
  * `dividendSyncService.ts`), only a projection from the recent cadence, so
