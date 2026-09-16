@@ -10,7 +10,9 @@ import {
   calculateTrailingTwelveMonthIncome,
   calculateDividendYield,
   calculateDividendGrowth,
+  calculateMonthlySeasonality,
   type PeriodIncome,
+  type MonthlySeasonality,
 } from "@/lib/finance/dividendMetrics";
 import {
   estimateNextDividend,
@@ -27,6 +29,9 @@ export interface DividendSnapshot {
   cashflows: DividendCashflow[];
   monthlyIncome: PeriodIncome[];
   annualIncome: PeriodIncome[];
+  /** The 12 calendar months with every year folded together — see
+   * calculateMonthlySeasonality. */
+  seasonality: MonthlySeasonality[];
   ttmIncome: { total: Decimal; hasMissingFx: boolean };
   yieldsBySecurity: Map<string, DividendYieldResult>;
   portfolioGrowth: DividendGrowthResult;
@@ -61,6 +66,7 @@ export async function getDividendSnapshot(
 
   const monthlyIncome = groupIncomeByPeriod(cashflows, "month");
   const annualIncome = groupIncomeByPeriod(cashflows, "year");
+  const seasonality = calculateMonthlySeasonality(cashflows);
   const ttmIncome = calculateTrailingTwelveMonthIncome(cashflows, asOf);
   const portfolioGrowth = calculateDividendGrowth("__portfolio__", cashflows, asOf);
 
@@ -85,11 +91,14 @@ export async function getDividendSnapshot(
     cashflows,
     monthlyIncome,
     annualIncome,
+    seasonality,
     ttmIncome,
     yieldsBySecurity,
     portfolioGrowth,
   };
 }
+
+const DAY_MS = 86_400_000;
 
 export interface DividendCalendarRow {
   securityId: string;
@@ -102,6 +111,11 @@ export interface DividendCalendarRow {
    * to the portfolio's base currency and, from there, split into gross/
    * Belgian-withholding-tax/net (see `estimateBelgianDividendPayout`). */
   payout: EstimatedDividendPayout;
+  /** Whole days from today to the estimated ex-date. Computed here rather
+   * than in a component because reading the clock during render is
+   * impure (React Compiler flags it) — and this way the count can never
+   * disagree with the date it's rendered beside. */
+  daysUntilExDate: number;
 }
 
 /**
@@ -156,6 +170,9 @@ export async function getDividendCalendar(
       quantity: holding.quantity,
       estimate,
       payout: estimateBelgianDividendPayout(grossBase),
+      daysUntilExDate: Math.ceil(
+        (estimate.estimatedNextExDate.getTime() - today.getTime()) / DAY_MS
+      ),
     });
   }
 

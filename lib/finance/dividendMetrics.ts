@@ -91,6 +91,44 @@ export function groupIncomeByPeriod(
   return Array.from(byPeriod.values()).sort((a, b) => a.periodKey.localeCompare(b.periodKey));
 }
 
+export interface MonthlySeasonality {
+  /** 1 = January … 12 = December. */
+  month: number;
+  /** Net base-currency income received in this calendar month across
+   * every year on record. */
+  income: Decimal;
+  paymentCount: number;
+}
+
+/**
+ * Net income folded onto the 12 calendar months, collapsing every year
+ * together — distinct from `groupIncomeByPeriod("month")`, which keeps
+ * years separate. Quarterly payers cluster on their own fixed months,
+ * so a holder of several of them usually has a few "fat" months and
+ * several near-empty ones; seeing which is which is what makes
+ * dividend income plannable rather than just a monthly surprise.
+ *
+ * Always returns all 12 months (zero-filled), so a caller can render a
+ * calendar strip without worrying about gaps.
+ */
+export function calculateMonthlySeasonality(cashflows: DividendCashflow[]): MonthlySeasonality[] {
+  const months: MonthlySeasonality[] = Array.from({ length: 12 }, (_, i) => ({
+    month: i + 1,
+    income: ZERO,
+    paymentCount: 0,
+  }));
+
+  for (const cf of cashflows) {
+    const slot = months[cf.date.getUTCMonth()];
+    slot.paymentCount += 1;
+    if (cf.netAmountBase !== null) {
+      slot.income = slot.income.plus(cf.netAmountBase);
+    }
+  }
+
+  return months;
+}
+
 /** Trailing-12-month net dividend income as of `asOf` (inclusive window:
  * (asOf - 365 days, asOf]). */
 export function calculateTrailingTwelveMonthIncome(

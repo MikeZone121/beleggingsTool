@@ -19,6 +19,7 @@ import { Money, Percent } from "@/components/ui/money";
 import { DividendCalendar } from "@/components/dividends/dividend-calendar";
 import { SyncDividendsButton } from "@/components/dividends/sync-dividends-button";
 import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/dividends/payment-history-table";
+import { SeasonalityStrip } from "@/components/dividends/seasonality-strip";
 import { Button } from "@/components/ui/button";
 import { CalendarPlus } from "lucide-react";
 
@@ -199,6 +200,26 @@ export default async function DividendsPage() {
         </CardHeader>
         <CardContent>
           <AnnualIncomeChart data={annualIncomeData} currency={baseCurrency} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Payment Rhythm</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Which calendar months your dividends actually land in, with every year folded
+            together — useful for knowing when income arrives, not just how much.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <SeasonalityStrip
+            months={snapshot.seasonality.map((m) => ({
+              month: m.month,
+              income: m.income.toNumber(),
+              paymentCount: m.paymentCount,
+            }))}
+            currency={baseCurrency}
+          />
         </CardContent>
       </Card>
 
