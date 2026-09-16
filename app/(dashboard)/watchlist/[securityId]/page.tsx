@@ -45,6 +45,8 @@ export default async function WatchlistSecurityPage({ params }: RouteParams) {
         <CardContent>
           <SecurityPriceChart data={chart.points} fibonacciLevels={chart.fibonacciLevels} currency={chart.currency} />
           <p className="mt-3 text-xs text-muted-foreground">
+            Drag the handles on the strip below the chart to zoom into a date range — useful when a
+            long price history makes recent, smaller moves hard to read against an old high or low.
             The Fibonacci grid marks the 0/23.6/38.2/50/61.8/78.6/100% retracement levels between the
             highest and lowest close in the history shown — not a signal or recommendation, just a
             commonly-watched reference.

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Brush,
   CartesianGrid,
   Legend,
   Line,
@@ -28,6 +29,15 @@ const SERIES_LABEL: Record<string, string> = {
   sma100: "SMA 100",
 };
 
+/** ~6 months of trading days — a full multi-year history opened at full
+ * zoom squashes everything into an unreadable flat line whenever the
+ * price has moved a lot over that span (e.g. €5000 → €200), so start
+ * zoomed into a recent, readable window instead. The Y axis re-scales to
+ * whatever's visible (see YAxis domain below), so dragging the brush
+ * strip to widen or narrow the range keeps the chart readable at any
+ * zoom level rather than fixing the y-scale to the all-time range. */
+const DEFAULT_VISIBLE_POINTS = 180;
+
 /**
  * Daily close price with SMA 25/50/100 overlays and a Fibonacci
  * retracement grid (0/23.6/38.2/50/61.8/78.6/100%, from the swing high
@@ -48,14 +58,16 @@ export function SecurityPriceChart({ data, fibonacciLevels, currency }: Security
 
   if (hidden) {
     return (
-      <div className="flex h-[380px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+      <div className="flex h-[420px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
         Hidden while privacy mode is on
       </div>
     );
   }
 
+  const defaultStartIndex = Math.max(0, data.length - DEFAULT_VISIBLE_POINTS);
+
   return (
-    <ResponsiveContainer width="100%" height={380}>
+    <ResponsiveContainer width="100%" height={420}>
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
         <CartesianGrid vertical={false} stroke="var(--border)" />
         <XAxis
@@ -133,6 +145,7 @@ export function SecurityPriceChart({ data, fibonacciLevels, currency }: Security
           dot={false}
           connectNulls
         />
+        <Brush dataKey="date" height={28} travellerWidth={8} startIndex={defaultStartIndex} stroke="var(--chart-1)" fill="var(--muted)" />
       </LineChart>
     </ResponsiveContainer>
   );
