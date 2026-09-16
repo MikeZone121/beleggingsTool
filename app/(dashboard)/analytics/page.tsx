@@ -61,38 +61,41 @@ export default async function AnalyticsPage() {
         <SyncPriceHistoryButton />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiCard
-          label="Money-Weighted Return (XIRR)"
-          value={
-            performance.xirr ? (
-              <Percent value={performance.xirr.toString()} signDisplay="always" />
-            ) : (
-              "Not computable"
-            )
-          }
-          sublabel="Annualized, accounts for the timing of deposits/withdrawals"
-          tone={pnlTone(performance.xirr)}
-        />
-        <KpiCard
-          label="Total Return"
-          value={
-            performance.totalReturn ? (
-              <Percent value={performance.totalReturn.toString()} signDisplay="always" />
-            ) : (
-              "Not computable"
-            )
-          }
-          sublabel="Ending value vs. net cash contributed"
-          tone={pnlTone(performance.totalReturn)}
-        />
-        <KpiCard
-          label="Net Cash Contributed"
-          value={
-            <Money value={performance.netExternalCashIn.toString()} currency={performance.baseCurrency} />
-          }
-          sublabel={performance.hasMissingFx ? "Incomplete — missing FX rate" : "Deposits minus withdrawals"}
-        />
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">Performance</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <KpiCard
+            label="Money-Weighted Return (XIRR)"
+            value={
+              performance.xirr ? (
+                <Percent value={performance.xirr.toString()} signDisplay="always" />
+              ) : (
+                "Not computable"
+              )
+            }
+            sublabel="Annualized, accounts for the timing of deposits/withdrawals"
+            tone={pnlTone(performance.xirr)}
+          />
+          <KpiCard
+            label="Total Return"
+            value={
+              performance.totalReturn ? (
+                <Percent value={performance.totalReturn.toString()} signDisplay="always" />
+              ) : (
+                "Not computable"
+              )
+            }
+            sublabel="Ending value vs. net cash contributed"
+            tone={pnlTone(performance.totalReturn)}
+          />
+          <KpiCard
+            label="Net Cash Contributed"
+            value={
+              <Money value={performance.netExternalCashIn.toString()} currency={performance.baseCurrency} />
+            }
+            sublabel={performance.hasMissingFx ? "Incomplete — missing FX rate" : "Deposits minus withdrawals"}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
