@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Money, Percent } from "@/components/ui/money";
 import { EditTargetPricePopover } from "./edit-target-price-popover";
+import { EditNotesPopover } from "./edit-notes-popover";
 import type { WatchlistRow } from "@/lib/portfolio/watchlistService";
 
 interface WatchlistTableProps {

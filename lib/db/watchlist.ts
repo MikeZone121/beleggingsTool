@@ -44,3 +44,10 @@ export async function setWatchlistTargetPrice(
     data: { targetPrice },
   });
 }
+
+export async function setWatchlistNotes(userId: string, id: string, notes: string | null) {
+  return prisma.watchlistItem.updateMany({
+    where: { id, userId },
+    data: { notes },
+  });
+}
