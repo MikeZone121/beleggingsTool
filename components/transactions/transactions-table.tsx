@@ -212,7 +212,98 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
           </span>
         )}
       </div>
-      <Table>
+
+      {/* Seven columns doesn't fit a phone screen without horizontal
+       * scrolling, which is an awkward way to read a transaction list —
+       * a stacked card per row (same bank-statement pattern as the icon
+       * avatars) reads far better below the `md` breakpoint. */}
+      <div className="flex flex-col divide-y divide-border md:hidden">
+        {filtered.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No transactions match your filters.
+          </p>
+        )}
+        {filtered.map((tx) => {
+          const Icon = TYPE_ICON[tx.type];
+          const sign = CASH_IMPACT_SIGN[tx.type];
+          const amountToneClass =
+            sign === 1
+              ? "text-emerald-600 dark:text-emerald-400"
+              : sign === -1
+                ? "text-red-600 dark:text-red-400"
+                : "";
+          const signedNetAmount =
+            sign !== undefined ? `${sign === -1 ? "-" : ""}${tx.netAmount}` : tx.netAmount;
+
+          return (
+            <div key={tx.id} className="flex flex-col gap-2 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <div
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full ${iconTone(sign)}`}
+                  >
+                    <Icon className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">{TYPE_LABEL[tx.type]}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDate(tx.date)}
+                      {tx.securityTicker && ` · ${tx.securityTicker}`}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit transaction"
+                    disabled={isPending}
+                    onClick={() => handleEdit(tx)}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Delete transaction"
+                    disabled={isPending}
+                    onClick={() => handleDelete(tx.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-end justify-between gap-2">
+                <div className="text-xs text-muted-foreground">
+                  {tx.quantity && (
+                    <>
+                      <Quantity value={tx.quantity} />
+                      {tx.price && (
+                        <>
+                          {" @ "}
+                          <Money value={tx.price} currency={tx.currency} />
+                        </>
+                      )}
+                    </>
+                  )}
+                  {tx.notes && <div className="mt-0.5 truncate">{tx.notes}</div>}
+                </div>
+                <div className={`text-right tabular-nums font-medium ${amountToneClass}`}>
+                  <Money value={signedNetAmount} currency={tx.currency} signDisplay="always" />
+                  {tx.realizedPnL && (
+                    <div className={`text-xs font-normal ${pnlToneClass(tx.realizedPnL)}`}>
+                      <Money value={tx.realizedPnL} currency={tx.currency} signDisplay="always" /> gain/loss
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Table className="hidden md:table">
         <TableHeader>
           <TableRow>
             <TableHead>Date</TableHead>
