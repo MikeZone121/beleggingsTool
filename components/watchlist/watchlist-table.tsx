@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -94,8 +95,10 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
               className={item.targetReached ? "bg-emerald-500/10 hover:bg-emerald-500/15" : undefined}
             >
               <TableCell>
-                <div className="font-medium">{item.ticker}</div>
-                <div className="text-xs text-muted-foreground">{item.name}</div>
+                <Link href={`/watchlist/${item.securityId}`} className="block hover:underline">
+                  <div className="font-medium">{item.ticker}</div>
+                  <div className="text-xs text-muted-foreground">{item.name}</div>
+                </Link>
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 <div className="flex items-center justify-end gap-1">

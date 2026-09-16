@@ -20,9 +20,11 @@ const DAY_MS = 86_400_000;
 const LOOKBACK_PADDING_DAYS = 10;
 /** A watchlist-only security has no transaction to anchor a backfill to —
  * it just needs enough recent history for "day-over-day change" (see
- * getPreviousClosePrices), so fall back to a fixed recent window instead
- * of skipping it entirely. */
-const WATCHLIST_LOOKBACK_DAYS = 14;
+ * getPreviousClosePrices) and for the watchlist price chart's SMA 100 /
+ * Fibonacci retracement (see securityChartService.ts) to have a full
+ * year of chart to actually show once the SMA 100 catches up, so fall
+ * back to a fixed window rather than skipping it entirely. */
+const WATCHLIST_LOOKBACK_DAYS = 500;
 
 /**
  * Backfills the `Price` table (unused until now) with each traded
