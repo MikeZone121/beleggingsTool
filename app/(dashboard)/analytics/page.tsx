@@ -18,6 +18,9 @@ import { Money, Percent } from "@/components/ui/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BenchmarkCard } from "@/components/analytics/benchmark-card";
 import { SyncPriceHistoryButton } from "@/components/analytics/sync-price-history-button";
+import { StressTestCard } from "@/components/analytics/stress-test-card";
+import { getCorrelationMatrix } from "@/lib/portfolio/correlationMatrixService";
+import { CorrelationMatrix } from "@/components/analytics/correlation-matrix";
 
 /** MSCI World ETF — a reasonable global-equity default; the user can
  * compare against anything resolvable by the configured provider. */
@@ -31,14 +34,16 @@ export default async function AnalyticsPage() {
     return <EmptyState title="No portfolio yet" description="No default portfolio was found." />;
   }
 
-  const [performance, benchmark, valueHistory, snapshot, transactionRows, fxRateRows] = await Promise.all([
-    getPerformanceSnapshot(user.id, portfolio.id),
-    getBenchmarkComparison(user.id, portfolio.id, DEFAULT_BENCHMARK_TICKER),
-    getPortfolioValueHistory(user.id, portfolio.id),
-    getPortfolioSnapshot(user.id, portfolio.id),
-    listTransactionsForPortfolio(user.id, portfolio.id),
-    listExchangeRates(),
-  ]);
+  const [performance, benchmark, valueHistory, snapshot, transactionRows, fxRateRows, correlation] =
+    await Promise.all([
+      getPerformanceSnapshot(user.id, portfolio.id),
+      getBenchmarkComparison(user.id, portfolio.id, DEFAULT_BENCHMARK_TICKER),
+      getPortfolioValueHistory(user.id, portfolio.id),
+      getPortfolioSnapshot(user.id, portfolio.id),
+      listTransactionsForPortfolio(user.id, portfolio.id),
+      listExchangeRates(),
+      getCorrelationMatrix(user.id, portfolio.id),
+    ]);
 
   const drawdown = calculateDrawdown(valueHistory);
   const holdingsInsights = calculateHoldingsInsights(snapshot.holdings);
@@ -50,6 +55,7 @@ export default async function AnalyticsPage() {
   });
   const totalCostsBase = costs.totalFeesBase.plus(costs.totalTaxesBase);
   const latestYearCosts = costs.byYear.at(-1) ?? null;
+  const holdingsValueBase = snapshot.totalValue.minus(snapshot.cashBalance.balanceBase);
 
   return (
     <div className="flex flex-col gap-6">
@@ -173,6 +179,26 @@ export default async function AnalyticsPage() {
           />
         </div>
       </div>
+
+      <StressTestCard
+        holdingsValueBase={holdingsValueBase.toString()}
+        cashBase={snapshot.cashBalance.balanceBase.toString()}
+        baseCurrency={performance.baseCurrency}
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Diversification</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Correlation of daily returns between each pair of holdings — near +1.00 means they
+            move almost in lockstep (not real diversification, even if they&apos;re in different
+            sectors), near 0 or negative means they genuinely offset each other.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <CorrelationMatrix tickers={correlation.tickers} cells={correlation.cells} />
+        </CardContent>
+      </Card>
 
       <div className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">Costs</h2>
