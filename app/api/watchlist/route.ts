@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { requireApiUser } from "@/lib/auth/session";
 import { addToWatchlist, listWatchlist } from "@/lib/db/watchlist";
+import { warmWatchlistSecurity } from "@/lib/portfolio/watchlistWarmupService";
 import { apiErrorFromException, apiSuccess } from "@/lib/utils/apiResponse";
 
 const addSchema = z.object({
@@ -24,7 +25,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { securityId, notes } = addSchema.parse(body);
     const item = await addToWatchlist(user.id, securityId, notes ?? null);
-    return apiSuccess(item, { status: 201 });
+    // Pull the price and daily-close history for this ticker now, so the
+    // row and its chart have data on the very first render instead of
+    // only after a later portfolio-wide refresh. Deliberately awaited:
+    // the client revalidates the page as soon as this responds, and
+    // firing it off unawaited would race that revalidation and still
+    // show an empty chart.
+    const warmup = await warmWatchlistSecurity(securityId);
+    return apiSuccess({ ...item, warmup }, { status: 201 });
   } catch (error) {
     return apiErrorFromException(error);
   }

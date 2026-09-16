@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SecuritySearchField, type SelectedSecurity } from "@/components/transactions/security-search-field";
@@ -38,7 +38,16 @@ export function AddWatchlistDialog({ existingSecurities, watchedSecurityIds }: A
         toast.error(result.error?.message ?? "Failed to add to watchlist");
         return;
       }
-      toast.success(`${security.ticker} added to watchlist`);
+      // The add itself succeeded even when the price fetch behind it
+      // didn't — say so, rather than letting the user wonder why the row
+      // has no price and an empty chart.
+      if (result.data?.warmup?.error) {
+        toast.warning(
+          `${security.ticker} added, but its prices couldn't be fetched — use Refresh All to retry`
+        );
+      } else {
+        toast.success(`${security.ticker} added to watchlist`);
+      }
       setOpen(false);
       router.refresh();
     } finally {
@@ -62,6 +71,15 @@ export function AddWatchlistDialog({ existingSecurities, watchedSecurityIds }: A
           onSelect={handleSelect}
           disabled={submitting}
         />
+        {/* Adding fetches a year and a half of daily closes so the chart
+            works immediately, which takes a moment — say what's happening
+            instead of just freezing the field. */}
+        {submitting && (
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" />
+            Fetching price history…
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

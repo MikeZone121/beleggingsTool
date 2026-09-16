@@ -1,5 +1,9 @@
-import { listSecurities, updateSecurityPrice } from "@/lib/db/securities";
-import { getFinancialDataProvider, ProviderError } from "@/lib/providers/financialData";
+import { getSecurityById, listSecurities, updateSecurityPrice } from "@/lib/db/securities";
+import {
+  getFinancialDataProvider,
+  ProviderError,
+  type FinancialDataProvider,
+} from "@/lib/providers/financialData";
 import { refreshExchangeRates } from "./fxRefreshService";
 
 export interface PriceRefreshSummary {
@@ -8,6 +12,53 @@ export interface PriceRefreshSummary {
   failed: number;
   skipped: number;
   errors: Array<{ ticker: string; message: string }>;
+}
+
+interface QuotableSecurity {
+  id: string;
+  ticker: string;
+  exchange: string | null;
+  currency: string;
+}
+
+/**
+ * Fetches and stores one security's current price. Returns false when the
+ * provider has no quote for it (the `manual` provider never has one), and
+ * throws when the quote can't be trusted — see the currency guard below.
+ */
+async function fetchAndStoreQuote(
+  provider: FinancialDataProvider,
+  security: QuotableSecurity
+): Promise<boolean> {
+  const quote = await provider.getQuote(security.ticker, security.exchange);
+  if (!quote) return false;
+  // A ticker can resolve to a *different* listing than the one we hold
+  // (e.g. "ASML" without an exchange hint returns the USD NASDAQ
+  // depositary receipt, not the EUR Euronext Amsterdam shares this
+  // Security actually represents). Writing that price would silently
+  // corrupt cost-basis/P&L math with a wrong-currency number — refuse
+  // it instead of ever guessing.
+  if (quote.currency !== security.currency) {
+    throw new ProviderError(
+      `Provider returned a ${quote.currency} quote for a ${security.currency} security (likely resolved to a different listing) — set a more specific exchange on this security and retry`,
+      false
+    );
+  }
+  await updateSecurityPrice(security.id, quote.price.toString());
+  return true;
+}
+
+/**
+ * Single-security counterpart to `refreshAllPrices`, for the moments a
+ * security is first created and its price is still null — waiting for the
+ * next portfolio-wide refresh would leave it blank in the meantime. FX
+ * rates are deliberately not touched here; that stays a portfolio-wide
+ * concern.
+ */
+export async function refreshPriceForSecurity(securityId: string): Promise<boolean> {
+  const security = await getSecurityById(securityId);
+  if (!security) return false;
+  return fetchAndStoreQuote(getFinancialDataProvider(), security);
 }
 
 /**
@@ -39,27 +90,11 @@ export async function refreshAllPrices(): Promise<PriceRefreshSummary> {
 
   for (const security of securities) {
     try {
-      const quote = await provider.getQuote(security.ticker, security.exchange);
-      if (!quote) {
+      if (await fetchAndStoreQuote(provider, security)) {
+        updated += 1;
+      } else {
         skipped += 1;
-        continue;
       }
-      // A ticker can resolve to a *different* listing than the one we hold
-      // (e.g. "ASML" without an exchange hint returns the USD NASDAQ
-      // depositary receipt, not the EUR Euronext Amsterdam shares this
-      // Security actually represents). Writing that price would silently
-      // corrupt cost-basis/P&L math with a wrong-currency number — refuse
-      // it as a failure instead of ever guessing.
-      if (quote.currency !== security.currency) {
-        failed += 1;
-        errors.push({
-          ticker: security.ticker,
-          message: `Provider returned a ${quote.currency} quote for a ${security.currency} security (likely resolved to a different listing) — set a more specific exchange on this security and retry`,
-        });
-        continue;
-      }
-      await updateSecurityPrice(security.id, quote.price.toString());
-      updated += 1;
     } catch (error) {
       failed += 1;
       errors.push({

@@ -1,8 +1,12 @@
-import { listSecurities } from "@/lib/db/securities";
+import { getSecurityById, listSecurities } from "@/lib/db/securities";
 import { getEarliestTransactionDateForSecurity } from "@/lib/db/transactions";
 import { getEarliestPriceDate, upsertPrice } from "@/lib/db/prices";
 import { listWatchedSecurityIds } from "@/lib/db/watchlist";
-import { getFinancialDataProvider, ProviderError } from "@/lib/providers/financialData";
+import {
+  getFinancialDataProvider,
+  ProviderError,
+  type FinancialDataProvider,
+} from "@/lib/providers/financialData";
 
 export interface PriceHistorySyncSummary {
   provider: string;
@@ -25,6 +29,65 @@ const LOOKBACK_PADDING_DAYS = 10;
  * year of chart to actually show once the SMA 100 catches up, so fall
  * back to a fixed window rather than skipping it entirely. */
 const WATCHLIST_LOOKBACK_DAYS = 500;
+
+interface HistoricalSecurity {
+  id: string;
+  ticker: string;
+  exchange: string | null;
+}
+
+/**
+ * Backfills one security's daily closes from `earliestNeeded` to today,
+ * skipping the fetch entirely when the cached series already reaches that
+ * far back. Returns false when it skipped, true when it wrote.
+ */
+async function backfillSecurityHistory(
+  provider: FinancialDataProvider,
+  security: HistoricalSecurity,
+  earliestNeeded: Date,
+  today: Date
+): Promise<boolean> {
+  const earliestOnRecord = await getEarliestPriceDate(security.id);
+  if (earliestOnRecord && earliestOnRecord <= earliestNeeded) return false;
+
+  const points = await provider.getHistoricalPrices(
+    security.ticker,
+    new Date(earliestNeeded.getTime() - LOOKBACK_PADDING_DAYS * DAY_MS),
+    today,
+    security.exchange
+  );
+  for (const point of points) {
+    await upsertPrice({
+      securityId: security.id,
+      date: point.date,
+      open: point.open?.toString() ?? null,
+      high: point.high?.toString() ?? null,
+      low: point.low?.toString() ?? null,
+      close: point.close.toString(),
+      currency: point.currency,
+    });
+  }
+  return true;
+}
+
+/**
+ * Backfills the `WATCHLIST_LOOKBACK_DAYS` window for a single security,
+ * for the moment one is added to a watchlist: until this runs the security
+ * has no `Price` rows at all, so its price chart, SMAs, Fibonacci levels
+ * and day-over-day change are all empty — and they'd stay empty until the
+ * user happened to trigger a portfolio-wide refresh from another page.
+ */
+export async function syncPriceHistoryForSecurity(securityId: string): Promise<boolean> {
+  const security = await getSecurityById(securityId);
+  if (!security) return false;
+
+  const today = new Date();
+  const earliestTransactionDate = await getEarliestTransactionDateForSecurity(security.id);
+  const earliestNeeded =
+    earliestTransactionDate ?? new Date(today.getTime() - WATCHLIST_LOOKBACK_DAYS * DAY_MS);
+
+  return backfillSecurityHistory(getFinancialDataProvider(), security, earliestNeeded, today);
+}
 
 /**
  * Backfills the `Price` table (unused until now) with each traded
@@ -70,31 +133,12 @@ export async function syncPriceHistory(): Promise<PriceHistorySyncSummary> {
       continue;
     }
 
-    const earliestOnRecord = await getEarliestPriceDate(security.id);
-    if (earliestOnRecord && earliestOnRecord <= earliestNeeded) {
-      skipped += 1;
-      continue;
-    }
-
     try {
-      const points = await provider.getHistoricalPrices(
-        security.ticker,
-        new Date(earliestNeeded.getTime() - LOOKBACK_PADDING_DAYS * DAY_MS),
-        today,
-        security.exchange
-      );
-      for (const point of points) {
-        await upsertPrice({
-          securityId: security.id,
-          date: point.date,
-          open: point.open?.toString() ?? null,
-          high: point.high?.toString() ?? null,
-          low: point.low?.toString() ?? null,
-          close: point.close.toString(),
-          currency: point.currency,
-        });
+      if (await backfillSecurityHistory(provider, security, earliestNeeded, today)) {
+        updated += 1;
+      } else {
+        skipped += 1;
       }
-      updated += 1;
     } catch (error) {
       failed += 1;
       errors.push({

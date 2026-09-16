@@ -23,9 +23,13 @@ import { getCorrelationMatrix } from "@/lib/portfolio/correlationMatrixService";
 import { CorrelationMatrix } from "@/components/analytics/correlation-matrix";
 import { AnalyticsTabs } from "@/components/analytics/analytics-tabs";
 
-/** MSCI World ETF — a reasonable global-equity default; the user can
- * compare against anything resolvable by the configured provider. */
-const DEFAULT_BENCHMARK_TICKER = "URTH";
+/** SPDR MSCI ACWI IMI UCITS ETF on Borsa Italiana — EUR-quoted, and
+ * broader than a developed-markets MSCI World (it includes emerging
+ * markets and small caps). Quoted in EUR on purpose: a USD-listed
+ * equivalent would fold USD/EUR moves into the comparison line and make
+ * the portfolio look like it beat or trailed the index on currency
+ * alone. The user can compare against anything the provider resolves. */
+const DEFAULT_BENCHMARK_TICKER = "IMIE.MI";
 
 export default async function AnalyticsPage() {
   const user = await requireUser();
