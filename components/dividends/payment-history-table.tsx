@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
 import { Money } from "@/components/ui/money";
 
 export interface PaymentHistoryRow {
@@ -27,6 +28,7 @@ export interface PaymentHistoryRow {
 }
 
 export function PaymentHistoryTable({ rows }: { rows: PaymentHistoryRow[] }) {
+  const locale = useLocale();
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -62,7 +64,7 @@ export function PaymentHistoryTable({ rows }: { rows: PaymentHistoryRow[] }) {
           <div key={row.transactionId} className="flex items-center justify-between gap-2 p-3">
             <div>
               <div className="font-medium">{row.ticker}</div>
-              <div className="text-xs text-muted-foreground">{formatDate(row.date)}</div>
+              <div className="text-xs text-muted-foreground">{formatDate(row.date, { locale })}</div>
             </div>
             <div className="text-right">
               <div className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
@@ -102,7 +104,7 @@ export function PaymentHistoryTable({ rows }: { rows: PaymentHistoryRow[] }) {
           )}
           {filtered.map((row) => (
             <TableRow key={row.transactionId}>
-              <TableCell>{formatDate(row.date)}</TableCell>
+              <TableCell>{formatDate(row.date, { locale })}</TableCell>
               <TableCell>{row.ticker}</TableCell>
               <TableCell className="text-right tabular-nums">
                 <Money value={row.grossAmount} currency={row.currency} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/components/locale-provider";
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
 import { formatCurrency, formatPercent, formatQuantity } from "@/lib/utils/format";
 
@@ -22,8 +23,11 @@ interface MoneyProps {
  * Component boundary. */
 export function Money({ value, currency, signDisplay, className }: MoneyProps) {
   const { hidden } = usePrivacyMode();
+  const locale = useLocale();
   if (hidden) return <span className={className}>{MASK}</span>;
-  return <span className={className}>{formatCurrency(value, currency, { signDisplay })}</span>;
+  return (
+    <span className={className}>{formatCurrency(value, currency, { signDisplay, locale })}</span>
+  );
 }
 
 interface PercentProps {
@@ -35,8 +39,11 @@ interface PercentProps {
 
 export function Percent({ value, signDisplay, decimals, className }: PercentProps) {
   const { hidden } = usePrivacyMode();
+  const locale = useLocale();
   if (hidden) return <span className={className}>{MASK}</span>;
-  return <span className={className}>{formatPercent(value, { signDisplay, decimals })}</span>;
+  return (
+    <span className={className}>{formatPercent(value, { signDisplay, decimals, locale })}</span>
+  );
 }
 
 interface QuantityProps {
@@ -46,6 +53,7 @@ interface QuantityProps {
 
 export function Quantity({ value, className }: QuantityProps) {
   const { hidden } = usePrivacyMode();
+  const locale = useLocale();
   if (hidden) return <span className={className}>{MASK}</span>;
-  return <span className={className}>{formatQuantity(value)}</span>;
+  return <span className={className}>{formatQuantity(value, { locale })}</span>;
 }

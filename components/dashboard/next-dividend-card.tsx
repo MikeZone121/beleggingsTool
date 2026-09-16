@@ -2,6 +2,7 @@ import { CalendarClock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Money } from "@/components/ui/money";
 import { formatDate } from "@/lib/utils/format";
+import { getUserLocale } from "@/lib/utils/serverLocale";
 
 interface NextDividendCardProps {
   ticker: string | null;
@@ -24,7 +25,7 @@ interface NextDividendCardProps {
  * page; this is only the next one, because that's the one worth
  * remembering.
  */
-export function NextDividendCard({
+export async function NextDividendCard({
   ticker,
   name,
   exDate,
@@ -32,6 +33,8 @@ export function NextDividendCard({
   baseCurrency,
   daysUntil,
 }: NextDividendCardProps) {
+  const locale = await getUserLocale();
+
   if (!ticker || !exDate) {
     return (
       <Card>
@@ -65,7 +68,7 @@ export function NextDividendCard({
               {countdown && <span className="text-base text-muted-foreground">{countdown}</span>}
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {name} · est. ex-date {formatDate(exDate)}
+              {name} · est. ex-date {formatDate(exDate, { locale })}
             </p>
           </div>
           <div className="flex items-center gap-2 text-right">

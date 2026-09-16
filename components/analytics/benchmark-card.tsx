@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BenchmarkChart, type BenchmarkChartPoint } from "@/components/charts/benchmark-chart";
 import { formatDate } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
 import { TickerSearchField } from "./ticker-search-field";
 
 interface BenchmarkCardProps {
@@ -21,6 +22,7 @@ export function BenchmarkCard({
   initialError,
   currency,
 }: BenchmarkCardProps) {
+  const locale = useLocale();
   const [ticker, setTicker] = useState(initialTicker);
   const [points, setPoints] = useState(initialPoints);
   const [error, setError] = useState(initialError);
@@ -53,7 +55,7 @@ export function BenchmarkCard({
           <p className="mt-1 text-xs text-muted-foreground">
             {firstDate ? (
               <>
-                On {formatDate(firstDate)} your portfolio was worth a certain amount. This shows
+                On {formatDate(firstDate, { locale })} your portfolio was worth a certain amount. This shows
                 what that same amount is worth today — as your actual portfolio, and as if
                 it had gone into {ticker} instead.
               </>

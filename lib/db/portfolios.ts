@@ -39,6 +39,42 @@ export async function listDistinctBaseCurrencies(): Promise<string[]> {
   return rows.map((r) => r.baseCurrency);
 }
 
+/**
+ * Updates the settings exposed on the Settings page. Scoped with
+ * `updateMany` on `{ id, userId }` rather than `update` on `{ id }` — the
+ * same pattern as `lib/db/watchlist.ts` — so someone else's portfolio id
+ * matches zero rows instead of being written to.
+ *
+ * `accountingMethod` is deliberately not updatable: switching cost-basis
+ * method retroactively rewrites every realized gain already reported (see
+ * lib/finance/costBasis.ts), so it stays read-only rather than silently
+ * changing history.
+ */
+export async function updatePortfolioSettings(
+  userId: string,
+  portfolioId: string,
+  data: {
+    name: string;
+    baseCurrency: string;
+    benchmarkTicker: string | null;
+    dividendTaxRate: string;
+  }
+) {
+  const result = await prisma.portfolio.updateMany({
+    where: { id: portfolioId, userId },
+    data: {
+      name: data.name,
+      baseCurrency: data.baseCurrency,
+      benchmarkTicker: data.benchmarkTicker,
+      dividendTaxRate: data.dividendTaxRate,
+    },
+  });
+  if (result.count === 0) {
+    throw new Error("Portfolio not found");
+  }
+  return getPortfolioById(userId, portfolioId);
+}
+
 export async function createPortfolio(
   userId: string,
   data: { name: string; baseCurrency: string; isDefault?: boolean }

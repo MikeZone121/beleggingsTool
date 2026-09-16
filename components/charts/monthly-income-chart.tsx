@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCurrency } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
 
 export interface MonthlyIncomePoint {
@@ -22,6 +23,7 @@ interface MonthlyIncomeChartProps {
  */
 export function MonthlyIncomeChart({ data, currency }: MonthlyIncomeChartProps) {
   const { hidden } = usePrivacyMode();
+  const locale = useLocale();
 
   if (data.length === 0) {
     return <p className="text-sm text-muted-foreground">No dividend income yet.</p>;
@@ -47,7 +49,7 @@ export function MonthlyIncomeChart({ data, currency }: MonthlyIncomeChartProps) 
         />
         <YAxis hide />
         <Tooltip
-          formatter={(value) => formatCurrency(Number(value ?? 0), currency)}
+          formatter={(value) => formatCurrency(Number(value ?? 0), currency, { locale })}
           contentStyle={{
             fontSize: 12,
             borderRadius: 8,

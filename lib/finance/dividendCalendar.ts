@@ -22,12 +22,17 @@ const DEFAULT_INTERVAL_DAYS = 91;
 /**
  * Belgian "roerende voorheffing" — the flat withholding tax on dividend
  * (and other movable) income, applied by the paying broker before payout.
- * This is a simplification for an *estimate*: it ignores the annual
- * tax-free allowance on dividend income (claimed back via the tax return,
- * not withheld at source) and any foreign withholding tax already deducted
- * abroad (e.g. the US's 15% under the tax treaty) — both would reduce the
- * effective Belgian tax below this flat rate for at least some of a real
- * dividend. Treat this net figure as a lower-bound estimate, not a filing.
+ * The default for a new portfolio; each portfolio can override it in
+ * Settings (`Portfolio.dividendTaxRate`) since the same app is useful to
+ * someone taxed elsewhere.
+ *
+ * This is a simplification for an *estimate* at any rate: it ignores the
+ * annual tax-free allowance on dividend income (claimed back via the tax
+ * return, not withheld at source) and any foreign withholding tax already
+ * deducted abroad (e.g. the US's 15% under the tax treaty) — both would
+ * reduce the effective Belgian tax below this flat rate for at least some
+ * of a real dividend. Treat this net figure as a lower-bound estimate,
+ * not a filing.
  */
 export const BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE = new Decimal("0.30");
 
@@ -39,15 +44,20 @@ export interface EstimatedDividendPayout {
   netBase: Decimal | null;
 }
 
-/** Applies the flat Belgian withholding rate to a gross amount already
- * converted to the base currency — kept separate from the FX conversion
- * itself (done by the caller, which has the FX rate table) so this stays a
- * pure, easily-testable function. */
-export function estimateBelgianDividendPayout(grossBase: Decimal | null): EstimatedDividendPayout {
+/** Applies a flat withholding rate to a gross amount already converted to
+ * the base currency — kept separate from the FX conversion itself (done by
+ * the caller, which has the FX rate table) so this stays a pure,
+ * easily-testable function. `taxRate` comes from the portfolio's settings;
+ * it defaults to the Belgian rate for callers that have no portfolio
+ * context. */
+export function estimateDividendPayout(
+  grossBase: Decimal | null,
+  taxRate: Decimal = BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE
+): EstimatedDividendPayout {
   if (grossBase === null) {
     return { grossBase: null, taxBase: null, netBase: null };
   }
-  const taxBase = grossBase.times(BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE);
+  const taxBase = grossBase.times(taxRate);
   return { grossBase, taxBase, netBase: grossBase.minus(taxBase) };
 }
 

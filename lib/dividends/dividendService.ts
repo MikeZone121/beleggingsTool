@@ -16,7 +16,7 @@ import {
 } from "@/lib/finance/dividendMetrics";
 import {
   estimateNextDividend,
-  estimateBelgianDividendPayout,
+  estimateDividendPayout,
   type EstimatedDividend,
   type EstimatedDividendPayout,
 } from "@/lib/finance/dividendCalendar";
@@ -109,7 +109,8 @@ export interface DividendCalendarRow {
   estimate: EstimatedDividend;
   /** The next projected payout for the quantity currently held, converted
    * to the portfolio's base currency and, from there, split into gross/
-   * Belgian-withholding-tax/net (see `estimateBelgianDividendPayout`). */
+   * withholding-tax/net at the portfolio's configured rate (see
+   * `estimateDividendPayout`). */
   payout: EstimatedDividendPayout;
   /** Whole days from today to the estimated ex-date. Computed here rather
    * than in a component because reading the clock during render is
@@ -147,6 +148,7 @@ export async function getDividendCalendar(
   const fxRateRows = await listExchangeRates();
   const fxRates = fxRateRows.map(toFxRate);
   const today = new Date();
+  const withholdingRate = new Decimal(portfolio.dividendTaxRate.toString());
 
   const calendar: DividendCalendarRow[] = [];
   for (const holding of heldHoldings) {
@@ -169,7 +171,7 @@ export async function getDividendCalendar(
       currency: holding.currency,
       quantity: holding.quantity,
       estimate,
-      payout: estimateBelgianDividendPayout(grossBase),
+      payout: estimateDividendPayout(grossBase, withholdingRate),
       daysUntilExDate: Math.ceil(
         (estimate.estimatedNextExDate.getTime() - today.getTime()) / DAY_MS
       ),

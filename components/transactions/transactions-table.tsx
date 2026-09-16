@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
 import { Money, Quantity } from "@/components/ui/money";
 import { CASH_IMPACT_SIGN } from "@/lib/finance/cashBalance";
 import { EditTransactionDialog, type EditableTransaction } from "./edit-transaction-dialog";
@@ -126,6 +127,7 @@ interface TransactionsTableProps {
 
 export function TransactionsTable({ transactions, accounts, securities }: TransactionsTableProps) {
   const router = useRouter();
+  const locale = useLocale();
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState<EditableTransaction | null>(null);
   const [query, setQuery] = useState("");
@@ -247,7 +249,7 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
                   <div className="min-w-0">
                     <div className="text-sm font-medium">{TYPE_LABEL[tx.type]}</div>
                     <div className="text-xs text-muted-foreground">
-                      {formatDate(tx.date)}
+                      {formatDate(tx.date, { locale })}
                       {tx.securityTicker && ` · ${tx.securityTicker}`}
                     </div>
                   </div>
@@ -337,7 +339,7 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
 
             return (
               <TableRow key={tx.id}>
-                <TableCell className="whitespace-nowrap">{formatDate(tx.date)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatDate(tx.date, { locale })}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <div

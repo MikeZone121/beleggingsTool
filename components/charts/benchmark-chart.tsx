@@ -2,7 +2,8 @@
 
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
-import { formatCurrency } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
+import { formatCurrency, formatPercent } from "@/lib/utils/format";
 
 export interface BenchmarkChartPoint {
   date: string;
@@ -18,10 +19,6 @@ interface BenchmarkChartProps {
   currency: string;
 }
 
-function formatPercent(value: number): string {
-  return `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)}%`;
-}
-
 /**
  * Both lines are the same starting amount's value over time — the
  * portfolio's actual value, and what that same amount would be worth had
@@ -31,6 +28,7 @@ function formatPercent(value: number): string {
  */
 export function BenchmarkChart({ data, benchmarkTicker, currency }: BenchmarkChartProps) {
   const { hidden } = usePrivacyMode();
+  const locale = useLocale();
 
   if (data.length === 0) {
     return (
@@ -71,7 +69,7 @@ export function BenchmarkChart({ data, benchmarkTicker, currency }: BenchmarkCha
           tickLine={false}
           axisLine={false}
           tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-          tickFormatter={(value) => formatCurrency(Number(value), currency)}
+          tickFormatter={(value) => formatCurrency(Number(value), currency, { locale })}
           width={72}
           // Recharts defaults a numeric axis to start at 0, which is right
           // for a bar chart but flattens this one: both lines track the
@@ -86,9 +84,11 @@ export function BenchmarkChart({ data, benchmarkTicker, currency }: BenchmarkCha
             if (value === null || value === undefined) return ["—", name];
             const isPortfolio = name === "portfolioValueBase";
             const returnValue = returnByKey.get(`${item.payload.date}:${isPortfolio ? "portfolio" : "benchmark"}`);
-            const valueLabel = formatCurrency(Number(value), currency);
+            const valueLabel = formatCurrency(Number(value), currency, { locale });
             const withReturn =
-              typeof returnValue === "number" ? `${valueLabel} (${formatPercent(returnValue)})` : valueLabel;
+              typeof returnValue === "number"
+                ? `${valueLabel} (${formatPercent(returnValue, { decimals: 1, signDisplay: "always", locale })})`
+                : valueLabel;
             return [withReturn, isPortfolio ? "Portfolio" : benchmarkTicker];
           }}
           contentStyle={{

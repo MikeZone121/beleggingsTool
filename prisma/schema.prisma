@@ -54,6 +54,11 @@ model User {
   email          String          @unique
   name           String?
   passwordHash   String?
+  /// BCP 47 tag driving every number/date format in the UI (see
+  /// lib/utils/format.ts) - a Belgian user wants "127.438,20 EUR" and
+  /// "16 sep 2026", a US one "$127,438.20" and "Sep 16, 2026". Display
+  /// only: it never affects stored values or any Decimal math.
+  locale         String          @default("en-US")
   portfolios     Portfolio[]
   watchlistItems WatchlistItem[]
   createdAt      DateTime        @default(now())
@@ -68,6 +73,16 @@ model Portfolio {
   baseCurrency      String
   /// Locked in once the portfolio has any transactions - see lib/finance/costBasis.ts
   accountingMethod  CostBasisMethod    @default(AVERAGE_COST)
+  /// Ticker the Analytics page compares this portfolio against. Null falls
+  /// back to DEFAULT_BENCHMARK_TICKER; it's nullable rather than defaulted
+  /// so changing that default also moves every portfolio that never picked
+  /// one of its own.
+  benchmarkTicker   String?
+  /// Withholding rate applied to projected dividends (see
+  /// lib/finance/dividendCalendar.ts). Defaults to the Belgian 30% flat
+  /// "roerende voorheffing"; configurable because the same app is useful
+  /// to someone taxed elsewhere.
+  dividendTaxRate   Decimal            @default(0.30) @db.Decimal(5, 4)
   isDefault         Boolean            @default(true)
   accounts          Account[]
   allocationTargets AllocationTarget[]

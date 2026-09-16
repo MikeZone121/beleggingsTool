@@ -1,6 +1,7 @@
 "use client";
 
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
+import { useLocale } from "@/components/locale-provider";
 import { formatCurrency } from "@/lib/utils/format";
 
 export interface SeasonalityMonth {
@@ -40,6 +41,7 @@ const MONTH_NAMES = [
  */
 export function SeasonalityStrip({ months, currency }: SeasonalityStripProps) {
   const { hidden } = usePrivacyMode();
+  const locale = useLocale();
   const max = Math.max(...months.map((m) => m.income), 0);
 
   if (max <= 0) {
@@ -64,7 +66,7 @@ export function SeasonalityStrip({ months, currency }: SeasonalityStripProps) {
               <div
                 className="h-10 w-full rounded-md border border-border"
                 style={{ backgroundColor: `color-mix(in oklch, var(--chart-1) ${intensity * 100}%, transparent)` }}
-                title={`${MONTH_NAMES[i]}: ${hidden ? "•••••" : formatCurrency(m.income, currency)} across ${m.paymentCount} payment${m.paymentCount === 1 ? "" : "s"}`}
+                title={`${MONTH_NAMES[i]}: ${hidden ? "•••••" : formatCurrency(m.income, currency, { locale })} across ${m.paymentCount} payment${m.paymentCount === 1 ? "" : "s"}`}
               />
               <span className="text-xs text-muted-foreground">{MONTH_LABELS[i]}</span>
             </div>
@@ -73,7 +75,7 @@ export function SeasonalityStrip({ months, currency }: SeasonalityStripProps) {
       </div>
       <p className="text-xs text-muted-foreground">
         Darkest month is {MONTH_NAMES[best.month - 1]} at{" "}
-        {hidden ? "•••••" : formatCurrency(best.income, currency)} received across all years on
+        {hidden ? "•••••" : formatCurrency(best.income, currency, { locale })} received across all years on
         record. Hover any month for its total.
       </p>
     </div>

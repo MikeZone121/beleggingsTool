@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCurrency, formatPercent } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
 
 export interface AnnualIncomePoint {
@@ -25,6 +26,7 @@ interface AnnualIncomeChartProps {
  */
 export function AnnualIncomeChart({ data, currency }: AnnualIncomeChartProps) {
   const { hidden } = usePrivacyMode();
+  const locale = useLocale();
 
   if (data.length === 0) {
     return <p className="text-sm text-muted-foreground">No dividend income yet.</p>;
@@ -52,8 +54,8 @@ export function AnnualIncomeChart({ data, currency }: AnnualIncomeChartProps) {
         <Tooltip
           formatter={(value, _name, item) => {
             const growth = item.payload.growth as number | null;
-            const valueLabel = formatCurrency(Number(value ?? 0), currency);
-            return [growth !== null ? `${valueLabel} (${formatPercent(growth, { signDisplay: "always" })})` : valueLabel, "Income"];
+            const valueLabel = formatCurrency(Number(value ?? 0), currency, { locale });
+            return [growth !== null ? `${valueLabel} (${formatPercent(growth, { signDisplay: "always", locale })})` : valueLabel, "Income"];
           }}
           contentStyle={{
             fontSize: 12,

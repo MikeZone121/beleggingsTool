@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils/format";
+import { getUserLocale } from "@/lib/utils/serverLocale";
 import { Money, Quantity } from "@/components/ui/money";
 
 export interface DividendCalendarRowData {
@@ -28,7 +29,7 @@ export interface DividendCalendarRowData {
   netBase: string | null;
 }
 
-export function DividendCalendar({
+export async function DividendCalendar({
   rows,
   baseCurrency,
 }: {
@@ -36,6 +37,8 @@ export function DividendCalendar({
   baseCurrency: string;
 }) {
   if (rows.length === 0) return null;
+
+  const locale = await getUserLocale();
 
   const totalNetBase = rows.reduce(
     (sum, r) => (r.netBase ? sum.plus(r.netBase) : sum),
@@ -71,7 +74,7 @@ export function DividendCalendar({
                 </div>
               </div>
               <div className="flex items-center gap-1.5 text-xs tabular-nums">
-                {formatDate(row.estimatedNextExDate)}
+                {formatDate(row.estimatedNextExDate, { locale })}
                 <Badge variant="secondary">estimated</Badge>
               </div>
               <div className="text-xs text-muted-foreground">
@@ -112,11 +115,11 @@ export function DividendCalendar({
                 </TableCell>
                 <TableCell className="whitespace-nowrap tabular-nums">
                   <div className="flex items-center gap-1.5">
-                    {formatDate(row.estimatedNextExDate)}
+                    {formatDate(row.estimatedNextExDate, { locale })}
                     <Badge variant="secondary">estimated</Badge>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Last paid {formatDate(row.lastExDate)} (
+                    Last paid {formatDate(row.lastExDate, { locale })} (
                     <Money value={row.lastAmountPerShare} currency={row.currency} />
                     /share) · {row.paymentsOnRecord} payment{row.paymentsOnRecord === 1 ? "" : "s"}
                     , ~{row.estimatedIntervalDays}d cadence

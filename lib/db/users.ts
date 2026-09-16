@@ -12,6 +12,19 @@ export async function updateUserPassword(userId: string, passwordHash: string) {
   return prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 }
 
+/** Display-only preferences (see Settings). Email is deliberately not
+ * editable here: it's the login identity, so changing it needs a
+ * verification flow rather than a plain field. */
+export async function updateUserProfile(
+  userId: string,
+  data: { name: string; locale: string }
+) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { name: data.name, locale: data.locale },
+  });
+}
+
 /**
  * Creates a new user with the starter portfolio/account every subsequent
  * page assumes exists (`getDefaultPortfolio`) — signing up always leaves a

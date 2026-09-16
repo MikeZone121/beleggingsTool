@@ -3,6 +3,7 @@
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
 
 /** Fixed categorical fill order — see app/globals.css `--chart-1..8`
@@ -61,7 +62,9 @@ function foldToTopSlots(buckets: AllocationChartBucket[]): AllocationChartBucket
  */
 export function AllocationBar({ buckets, currency, identityOrder }: AllocationBarProps) {
   const { hidden } = usePrivacyMode();
-  const formatValue = (value: number) => (hidden ? "•••••" : formatCurrency(value, currency));
+  const locale = useLocale();
+  const formatValue = (value: number) =>
+    hidden ? "•••••" : formatCurrency(value, currency, { locale });
   if (buckets.length === 0) {
     return <p className="text-sm text-muted-foreground">No data available.</p>;
   }

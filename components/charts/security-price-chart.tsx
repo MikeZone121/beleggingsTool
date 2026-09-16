@@ -16,6 +16,7 @@ import {
   useYAxisScale,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
 import { usePrivacyMode } from "@/components/privacy-mode-provider";
 import { Button } from "@/components/ui/button";
 import type { SecurityChartPoint, SecurityFibonacciLevel } from "@/lib/portfolio/securityChartService";
@@ -111,6 +112,7 @@ function CandlestickSeries({ data }: { data: SecurityChartPoint[] }) {
  */
 export function SecurityPriceChart({ data, fibonacciLevels, currency }: SecurityPriceChartProps) {
   const { hidden } = usePrivacyMode();
+  const locale = useLocale();
   const [view, setView] = useState<"line" | "candlestick">("line");
 
   if (data.length === 0) {
@@ -166,13 +168,15 @@ export function SecurityPriceChart({ data, fibonacciLevels, currency }: Security
             tickLine={false}
             axisLine={false}
             tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-            tickFormatter={(value) => formatCurrency(Number(value), currency)}
+            tickFormatter={(value) => formatCurrency(Number(value), currency, { locale })}
             width={72}
             domain={["auto", "auto"]}
           />
           <Tooltip
             formatter={(value, name) => [
-              value === null || value === undefined ? "—" : formatCurrency(Number(value), currency),
+              value === null || value === undefined
+                ? "—"
+                : formatCurrency(Number(value), currency, { locale }),
               SERIES_LABEL[String(name)] ?? String(name),
             ]}
             contentStyle={{
@@ -198,7 +202,7 @@ export function SecurityPriceChart({ data, fibonacciLevels, currency }: Security
               strokeDasharray="3 3"
               strokeOpacity={0.5}
               label={{
-                value: `${level.label} · ${formatCurrency(level.price, currency)}`,
+                value: `${level.label} · ${formatCurrency(level.price, currency, { locale })}`,
                 position: "insideTopLeft",
                 fill: "var(--muted-foreground)",
                 fontSize: 10,

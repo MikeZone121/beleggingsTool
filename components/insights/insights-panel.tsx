@@ -6,6 +6,7 @@ import { ExternalLink, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils/format";
+import { useLocale } from "@/components/locale-provider";
 
 interface HeadlineData {
   title: string;
@@ -29,6 +30,7 @@ interface InsightsPanelProps {
 }
 
 export function InsightsPanel({ aiConfigured, providerSupportsNews }: InsightsPanelProps) {
+  const locale = useLocale();
   const [loading, setLoading] = useState(false);
   const [insights, setInsights] = useState<HoldingInsightData[] | null>(null);
 
@@ -112,7 +114,7 @@ export function InsightsPanel({ aiConfigured, providerSupportsNews }: InsightsPa
                     {holding.headlines.map((h) => (
                       <li key={h.url} className="flex items-start gap-1.5 text-xs">
                         <Badge variant="secondary" className="shrink-0">
-                          {formatDate(h.publishedAt)}
+                          {formatDate(h.publishedAt, { locale })}
                         </Badge>
                         <a
                           href={h.url}

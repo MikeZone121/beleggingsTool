@@ -14,6 +14,7 @@ import { calculateCostsSummary } from "@/lib/finance/costsMetrics";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
 import { formatDate, pnlTone } from "@/lib/utils/format";
+import { getUserLocale } from "@/lib/utils/serverLocale";
 import { Money, Percent } from "@/components/ui/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BenchmarkCard } from "@/components/analytics/benchmark-card";
@@ -22,17 +23,12 @@ import { StressTestCard } from "@/components/analytics/stress-test-card";
 import { getCorrelationMatrix } from "@/lib/portfolio/correlationMatrixService";
 import { CorrelationMatrix } from "@/components/analytics/correlation-matrix";
 import { AnalyticsTabs } from "@/components/analytics/analytics-tabs";
+import { DEFAULT_BENCHMARK_TICKER } from "@/lib/finance/benchmarks";
 
-/** SPDR MSCI ACWI IMI UCITS ETF on Borsa Italiana — EUR-quoted, and
- * broader than a developed-markets MSCI World (it includes emerging
- * markets and small caps). Quoted in EUR on purpose: a USD-listed
- * equivalent would fold USD/EUR moves into the comparison line and make
- * the portfolio look like it beat or trailed the index on currency
- * alone. The user can compare against anything the provider resolves. */
-const DEFAULT_BENCHMARK_TICKER = "IMIE.MI";
 
 export default async function AnalyticsPage() {
   const user = await requireUser();
+  const locale = await getUserLocale();
   const portfolio = await getDefaultPortfolio(user.id);
 
   if (!portfolio) {
@@ -42,7 +38,11 @@ export default async function AnalyticsPage() {
   const [performance, benchmark, valueHistory, snapshot, transactionRows, fxRateRows, correlation] =
     await Promise.all([
       getPerformanceSnapshot(user.id, portfolio.id),
-      getBenchmarkComparison(user.id, portfolio.id, DEFAULT_BENCHMARK_TICKER),
+      getBenchmarkComparison(
+        user.id,
+        portfolio.id,
+        portfolio.benchmarkTicker ?? DEFAULT_BENCHMARK_TICKER
+      ),
       getPortfolioValueHistory(user.id, portfolio.id),
       getPortfolioSnapshot(user.id, portfolio.id),
       listTransactionsForPortfolio(user.id, portfolio.id),
@@ -129,7 +129,7 @@ export default async function AnalyticsPage() {
                 value={<Percent value={drawdown.maxDrawdown.toString()} />}
                 sublabel={
                   drawdown.maxDrawdownDate
-                    ? `Worst point: ${formatDate(drawdown.maxDrawdownDate)}`
+                    ? `Worst point: ${formatDate(drawdown.maxDrawdownDate, { locale })}`
                     : "No decline from a peak yet"
                 }
                 tone={drawdown.maxDrawdown.isZero() ? undefined : "negative"}

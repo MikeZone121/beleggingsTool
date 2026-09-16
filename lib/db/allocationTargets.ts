@@ -6,6 +6,15 @@ export async function listAllocationTargets(portfolioId: string, dimension: stri
   });
 }
 
+/** Every target across all dimensions — for the data export, which dumps
+ * what the user configured rather than one dimension's view of it. */
+export async function listAllAllocationTargets(portfolioId: string) {
+  return prisma.allocationTarget.findMany({
+    where: { portfolioId },
+    orderBy: [{ dimension: "asc" }, { key: "asc" }],
+  });
+}
+
 export async function upsertAllocationTarget(data: {
   portfolioId: string;
   dimension: string;

@@ -92,6 +92,12 @@ export async function createDividendTransactionsFromHistory(
 
   const dividendRows = await listDividendsForSecurities(securityIds);
 
+  // The portfolio's configured withholding rate (Settings), falling back to
+  // the Belgian default for a portfolio created before that setting existed.
+  const withholdingRate = portfolio.dividendTaxRate
+    ? new Decimal(portfolio.dividendTaxRate.toString())
+    : BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE;
+
   const summary: AutoDividendSummary = { ...ZERO_SUMMARY, errors: [] };
 
   for (const dividend of dividendRows) {
@@ -121,7 +127,7 @@ export async function createDividendTransactionsFromHistory(
 
     const dividendPerShare = new Decimal(dividend.dividendPerShare.toString());
     const grossAmount = dividendPerShare.times(quantity);
-    const taxAmount = grossAmount.times(BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE);
+    const taxAmount = grossAmount.times(withholdingRate);
     const externalId = `yahoo-dividend:${dividend.id}`;
 
     try {
@@ -137,7 +143,7 @@ export async function createDividendTransactionsFromHistory(
         taxes: taxAmount.toString(),
         currency: dividend.currency,
         exchangeRate: null,
-        notes: `Auto-added from ${dividend.source} dividend history (${quantity.toString()} shares @ ${dividendPerShare.toString()}/share). Tax estimated at ${BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE.times(100).toString()}% BE withholding — verify against your broker statement.`,
+        notes: `Auto-added from ${dividend.source} dividend history (${quantity.toString()} shares @ ${dividendPerShare.toString()}/share). Tax estimated at ${withholdingRate.times(100).toString()}% withholding — verify against your broker statement.`,
         externalId,
       });
       await createPortfolioTransaction(userId, input);
