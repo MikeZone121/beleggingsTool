@@ -69,7 +69,77 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
           </span>
         )}
       </div>
-      <Table>
+
+      <div className="flex flex-col divide-y divide-border md:hidden">
+        {filtered.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {items.length === 0
+              ? "Nothing on your watchlist yet — add a ticker to start tracking it."
+              : "No matches."}
+          </p>
+        )}
+        {filtered.map((item) => (
+          <div
+            key={item.id}
+            className={`flex flex-col gap-1 p-3 ${item.targetReached ? "bg-emerald-500/10" : ""}`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <Link href={`/watchlist/${item.securityId}`} className="min-w-0 hover:underline">
+                <div className="font-medium">{item.ticker}</div>
+                <div className="truncate text-xs text-muted-foreground">{item.name}</div>
+              </Link>
+              <div className="flex shrink-0 items-center gap-1">
+                <div className="text-right">
+                  {item.currentPrice ? (
+                    <Money value={item.currentPrice} currency={item.currency} />
+                  ) : (
+                    <Badge variant="secondary">no price</Badge>
+                  )}
+                  <div className={`text-xs tabular-nums ${dayChangeToneClass(item.dayChangePercent)}`}>
+                    {item.dayChangePercent ? (
+                      <Percent value={item.dayChangePercent} signDisplay="always" />
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Remove from watchlist"
+                  disabled={isPending}
+                  onClick={() => handleRemove(item.id, item.ticker)}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-1.5 text-xs">
+              <span className="text-muted-foreground">
+                Target:{" "}
+                {item.targetPrice ? (
+                  <Money value={item.targetPrice} currency={item.currency} />
+                ) : (
+                  "—"
+                )}
+                {item.targetReached && (
+                  <Badge className="ml-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                    Target reached
+                  </Badge>
+                )}
+              </span>
+              <EditTargetPricePopover
+                id={item.id}
+                ticker={item.ticker}
+                currency={item.currency}
+                targetPrice={item.targetPrice}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Table className="hidden md:table">
         <TableHeader>
           <TableRow>
             <TableHead>Security</TableHead>

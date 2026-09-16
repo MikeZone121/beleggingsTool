@@ -53,7 +53,36 @@ export function PaymentHistoryTable({ rows }: { rows: PaymentHistoryRow[] }) {
           </span>
         )}
       </div>
-      <Table>
+
+      <div className="flex flex-col divide-y divide-border md:hidden">
+        {filtered.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">No payments match your search.</p>
+        )}
+        {filtered.map((row) => (
+          <div key={row.transactionId} className="flex items-center justify-between gap-2 p-3">
+            <div>
+              <div className="font-medium">{row.ticker}</div>
+              <div className="text-xs text-muted-foreground">{formatDate(row.date)}</div>
+            </div>
+            <div className="text-right">
+              <div className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                <Money value={row.netAmount} currency={row.currency} />
+              </div>
+              <div className="text-xs tabular-nums text-muted-foreground">
+                <Money value={row.grossAmount} currency={row.currency} /> gross −{" "}
+                <Money value={row.taxes} currency={row.currency} /> tax
+              </div>
+              {row.missingFx && (
+                <Badge variant="secondary" className="mt-0.5">
+                  no FX
+                </Badge>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Table className="hidden md:table">
         <TableHeader>
           <TableRow>
             <TableHead>Date</TableHead>

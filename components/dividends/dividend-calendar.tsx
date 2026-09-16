@@ -55,7 +55,44 @@ export function DividendCalendar({
         </p>
       </div>
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm shadow-black/5">
-        <Table>
+        <div className="flex flex-col divide-y divide-border md:hidden">
+          {rows.map((row) => (
+            <div key={row.securityId} className="flex flex-col gap-1 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-medium">{row.ticker}</div>
+                  <div className="truncate text-xs text-muted-foreground">{row.name}</div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="font-medium tabular-nums">
+                    {row.netBase ? <Money value={row.netBase} currency={baseCurrency} /> : "—"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">net est.</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs tabular-nums">
+                {formatDate(row.estimatedNextExDate)}
+                <Badge variant="secondary">estimated</Badge>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <Quantity value={row.quantity} /> held ·{" "}
+                {row.grossBase ? (
+                  <Money value={row.grossBase} currency={baseCurrency} />
+                ) : (
+                  "no FX"
+                )}{" "}
+                gross
+                {row.taxBase && (
+                  <>
+                    {" − "}
+                    <Money value={row.taxBase} currency={baseCurrency} /> tax
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <Table className="hidden md:table">
           <TableHeader>
             <TableRow>
               <TableHead>Security</TableHead>

@@ -93,7 +93,82 @@ export function HoldingsTable({ holdings, cash, baseCurrency }: HoldingsTablePro
           </span>
         )}
       </div>
-      <Table>
+
+      {/* Nine columns doesn't fit a phone screen — a stacked card per
+       * holding below the md breakpoint instead, same pattern as the
+       * Transactions list. */}
+      <div className="flex flex-col divide-y divide-border md:hidden">
+        {filtered.length === 0 && !cash && (
+          <p className="py-6 text-center text-sm text-muted-foreground">No holdings match your search.</p>
+        )}
+        {filtered.map((holding) => (
+          <div key={holding.securityId} className="flex flex-col gap-1 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-medium">{holding.ticker}</div>
+                <div className="truncate text-xs text-muted-foreground">{holding.name}</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="font-medium tabular-nums">
+                  <Money value={holding.marketValueBase} currency={baseCurrency} />
+                </div>
+                {holding.weight && (
+                  <div className="text-xs tabular-nums text-muted-foreground">
+                    <Percent value={holding.weight} />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <div className="min-w-0 text-muted-foreground">
+                <Quantity value={holding.quantity} />
+                {" @ "}
+                {holding.currentPrice ? (
+                  <span className={dayChangeToneClass(holding.dayChangePercent)}>
+                    <Money value={holding.currentPrice} currency={holding.currency} />
+                  </span>
+                ) : (
+                  <Badge variant="secondary">no price</Badge>
+                )}
+                {holding.dayChangePercent && (
+                  <span className={dayChangeToneClass(holding.dayChangePercent)}>
+                    {" "}
+                    (<Percent value={holding.dayChangePercent} signDisplay="always" />)
+                  </span>
+                )}
+              </div>
+              <div className={`shrink-0 text-right tabular-nums font-medium ${toneClass[holding.tone]}`}>
+                <Money value={holding.unrealizedPnLBase} currency={baseCurrency} signDisplay="always" />
+                {holding.returnPercent && (
+                  <span className="ml-1 text-xs">
+                    (<Percent value={holding.returnPercent} signDisplay="always" />)
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+        {cash && (
+          <div className="flex items-center justify-between gap-2 bg-muted/40 p-3">
+            <div>
+              <div className="font-medium">Cash</div>
+              <div className="text-xs text-muted-foreground">{cash.baseCurrency} balance</div>
+            </div>
+            <div className="text-right">
+              <div className="font-medium tabular-nums">
+                <Money value={cash.balanceBase} currency={cash.baseCurrency} />
+              </div>
+              {cash.weight && (
+                <div className="text-xs tabular-nums text-muted-foreground">
+                  <Percent value={cash.weight} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Table className="hidden md:table">
         <TableHeader>
           <TableRow>
             <TableHead>Security</TableHead>
