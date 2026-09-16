@@ -4,9 +4,13 @@ import { getPerformanceSnapshot } from "@/lib/performance/performanceService";
 import { getBenchmarkComparison } from "@/lib/performance/benchmarkService";
 import { getPortfolioValueHistory } from "@/lib/performance/portfolioValueHistoryService";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
+import { listTransactionsForPortfolio } from "@/lib/db/transactions";
+import { listExchangeRates } from "@/lib/db/exchangeRates";
+import { toDomainTransaction, toFxRate } from "@/lib/db/mappers";
 import { calculateDrawdown } from "@/lib/finance/drawdown";
 import { calculateHoldingsInsights } from "@/lib/finance/holdingsInsights";
 import { calculateVolatilityMetrics, calculateBeta } from "@/lib/finance/riskMetrics";
+import { calculateCostsSummary } from "@/lib/finance/costsMetrics";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/empty-state";
 import { formatDate, pnlTone } from "@/lib/utils/format";
@@ -27,17 +31,25 @@ export default async function AnalyticsPage() {
     return <EmptyState title="No portfolio yet" description="No default portfolio was found." />;
   }
 
-  const [performance, benchmark, valueHistory, snapshot] = await Promise.all([
+  const [performance, benchmark, valueHistory, snapshot, transactionRows, fxRateRows] = await Promise.all([
     getPerformanceSnapshot(user.id, portfolio.id),
     getBenchmarkComparison(user.id, portfolio.id, DEFAULT_BENCHMARK_TICKER),
     getPortfolioValueHistory(user.id, portfolio.id),
     getPortfolioSnapshot(user.id, portfolio.id),
+    listTransactionsForPortfolio(user.id, portfolio.id),
+    listExchangeRates(),
   ]);
 
   const drawdown = calculateDrawdown(valueHistory);
   const holdingsInsights = calculateHoldingsInsights(snapshot.holdings);
   const volatility = calculateVolatilityMetrics(valueHistory);
   const beta = calculateBeta(benchmark.points);
+  const costs = calculateCostsSummary(transactionRows.map(toDomainTransaction), {
+    baseCurrency: portfolio.baseCurrency,
+    fxRates: fxRateRows.map(toFxRate),
+  });
+  const totalCostsBase = costs.totalFeesBase.plus(costs.totalTaxesBase);
+  const latestYearCosts = costs.byYear.at(-1) ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -159,6 +171,38 @@ export default async function AnalyticsPage() {
         </div>
       </div>
 
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">Costs</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <KpiCard
+            label="Total Fees &amp; Taxes"
+            value={<Money value={totalCostsBase.toString()} currency={performance.baseCurrency} />}
+            sublabel={
+              costs.hasMissingFx
+                ? "Incomplete — missing FX rate"
+                : "Since your first transaction"
+            }
+            highlight
+          />
+          <KpiCard
+            label="Broker Fees"
+            value={<Money value={costs.totalFeesBase.toString()} currency={performance.baseCurrency} />}
+          />
+          <KpiCard
+            label="Taxes"
+            value={<Money value={costs.totalTaxesBase.toString()} currency={performance.baseCurrency} />}
+            sublabel={
+              latestYearCosts ? (
+                <>
+                  <Money value={latestYearCosts.taxesBase.toString()} currency={performance.baseCurrency} />{" "}
+                  in {latestYearCosts.year}
+                </>
+              ) : undefined
+            }
+          />
+        </div>
+      </div>
+
       <BenchmarkCard
         initialTicker={benchmark.benchmarkTicker}
         initialPoints={benchmark.points}
@@ -211,6 +255,12 @@ export default async function AnalyticsPage() {
               <span className="text-foreground">Beta</span> is against the benchmark chart&apos;s
               default ticker specifically — switching the ticker in the chart above doesn&apos;t
               recompute it.
+            </li>
+            <li>
+              <span className="text-foreground">Total Fees &amp; Taxes</span> sums every
+              transaction&apos;s recorded fees and taxes fields (broker commissions, and whatever
+              you&apos;ve entered as taxes — e.g. Belgian beurstaks) since your first transaction —
+              it doesn&apos;t estimate taxes you haven&apos;t recorded.
             </li>
           </ul>
         </CardContent>
