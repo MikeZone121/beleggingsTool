@@ -19,6 +19,8 @@ import { Money, Percent } from "@/components/ui/money";
 import { DividendCalendar } from "@/components/dividends/dividend-calendar";
 import { SyncDividendsButton } from "@/components/dividends/sync-dividends-button";
 import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/dividends/payment-history-table";
+import { Button } from "@/components/ui/button";
+import { CalendarPlus } from "lucide-react";
 
 const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -67,7 +69,15 @@ export default async function DividendsPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Dividends</h1>
-          <SyncDividendsButton />
+          <div className="flex items-center gap-2">
+            {calendarData.length > 0 && (
+              <Button variant="outline" render={<a href="/api/dividends/ics" download />} nativeButton={false}>
+                <CalendarPlus className="size-4" />
+                Export to Calendar
+              </Button>
+            )}
+            <SyncDividendsButton />
+          </div>
         </div>
         <DividendCalendar rows={calendarData} baseCurrency={baseCurrency} />
         <EmptyState
@@ -113,7 +123,15 @@ export default async function DividendsPage() {
           <h1 className="text-2xl font-semibold">Dividends</h1>
           <p className="text-sm text-muted-foreground">{portfolio.name}</p>
         </div>
-        <SyncDividendsButton />
+        <div className="flex items-center gap-2">
+          {calendarData.length > 0 && (
+            <Button variant="outline" render={<a href="/api/dividends/ics" download />} nativeButton={false}>
+              <CalendarPlus className="size-4" />
+              Export to Calendar
+            </Button>
+          )}
+          <SyncDividendsButton />
+        </div>
       </div>
 
       <DividendCalendar rows={calendarData} baseCurrency={baseCurrency} />
