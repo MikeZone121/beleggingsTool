@@ -21,6 +21,7 @@ import { SyncPriceHistoryButton } from "@/components/analytics/sync-price-histor
 import { StressTestCard } from "@/components/analytics/stress-test-card";
 import { getCorrelationMatrix } from "@/lib/portfolio/correlationMatrixService";
 import { CorrelationMatrix } from "@/components/analytics/correlation-matrix";
+import { AnalyticsTabs } from "@/components/analytics/analytics-tabs";
 
 /** MSCI World ETF — a reasonable global-equity default; the user can
  * compare against anything resolvable by the configured provider. */
@@ -67,176 +68,184 @@ export default async function AnalyticsPage() {
         <SyncPriceHistoryButton />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Performance</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiCard
-            label="Money-Weighted Return (XIRR)"
-            value={
-              performance.xirr ? (
-                <Percent value={performance.xirr.toString()} signDisplay="always" />
-              ) : (
-                "Not computable"
-              )
-            }
-            sublabel="Annualized, accounts for the timing of deposits/withdrawals"
-            tone={pnlTone(performance.xirr)}
-          />
-          <KpiCard
-            label="Total Return"
-            value={
-              performance.totalReturn ? (
-                <Percent value={performance.totalReturn.toString()} signDisplay="always" />
-              ) : (
-                "Not computable"
-              )
-            }
-            sublabel="Ending value vs. net cash contributed"
-            tone={pnlTone(performance.totalReturn)}
-          />
-          <KpiCard
-            label="Net Cash Contributed"
-            value={
-              <Money value={performance.netExternalCashIn.toString()} currency={performance.baseCurrency} />
-            }
-            sublabel={performance.hasMissingFx ? "Incomplete — missing FX rate" : "Deposits minus withdrawals"}
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Risk &amp; Concentration</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            label="Max Drawdown"
-            value={<Percent value={drawdown.maxDrawdown.toString()} />}
-            sublabel={
-              drawdown.maxDrawdownDate
-                ? `Worst point: ${formatDate(drawdown.maxDrawdownDate)}`
-                : "No decline from a peak yet"
-            }
-            tone={drawdown.maxDrawdown.isZero() ? undefined : "negative"}
-          />
-          <KpiCard
-            label="Top 3 Concentration"
-            value={<Percent value={holdingsInsights.topConcentration.toString()} />}
-            sublabel="Share of value in your 3 largest positions"
-          />
-          <KpiCard
-            label="Best Holding"
-            value={holdingsInsights.best ? holdingsInsights.best.ticker : "—"}
-            sublabel={
-              holdingsInsights.best?.unrealizedPnLPercent ? (
-                <Percent value={holdingsInsights.best.unrealizedPnLPercent.toString()} signDisplay="always" />
-              ) : (
-                "No holdings with a computable return"
-              )
-            }
-            tone="positive"
-          />
-          <KpiCard
-            label="Worst Holding"
-            value={holdingsInsights.worst ? holdingsInsights.worst.ticker : "—"}
-            sublabel={
-              holdingsInsights.worst?.unrealizedPnLPercent ? (
-                <Percent value={holdingsInsights.worst.unrealizedPnLPercent.toString()} signDisplay="always" />
-              ) : (
-                "No holdings with a computable return"
-              )
-            }
-            tone="negative"
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <KpiCard
-            label="Sharpe Ratio"
-            value={volatility.sharpeRatio ? volatility.sharpeRatio.toFixed(2) : "—"}
-            sublabel="Annualized, assumes 0% risk-free rate"
-            tone={
-              volatility.sharpeRatio
-                ? volatility.sharpeRatio.greaterThanOrEqualTo(0)
-                  ? "positive"
-                  : "negative"
-                : undefined
-            }
-          />
-          <KpiCard
-            label="Sortino Ratio"
-            value={volatility.sortinoRatio ? volatility.sortinoRatio.toFixed(2) : "—"}
-            sublabel="Like Sharpe, but only penalizes downside moves"
-            tone={
-              volatility.sortinoRatio
-                ? volatility.sortinoRatio.greaterThanOrEqualTo(0)
-                  ? "positive"
-                  : "negative"
-                : undefined
-            }
-          />
-          <KpiCard
-            label="Beta"
-            value={beta ? beta.toFixed(2) : "—"}
-            sublabel={`vs. ${benchmark.benchmarkTicker} — 1.00 = moves with the market`}
-          />
-        </div>
-      </div>
-
-      <StressTestCard
-        holdingsValueBase={holdingsValueBase.toString()}
-        cashBase={snapshot.cashBalance.balanceBase.toString()}
-        baseCurrency={performance.baseCurrency}
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Diversification</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Correlation of daily returns between each pair of holdings — near +1.00 means they
-            move almost in lockstep (not real diversification, even if they&apos;re in different
-            sectors), near 0 or negative means they genuinely offset each other.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <CorrelationMatrix tickers={correlation.tickers} cells={correlation.cells} />
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Costs</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <KpiCard
-            label="Total Fees &amp; Taxes"
-            value={<Money value={totalCostsBase.toString()} currency={performance.baseCurrency} />}
-            sublabel={
-              costs.hasMissingFx
-                ? "Incomplete — missing FX rate"
-                : "Since your first transaction"
-            }
-            highlight
-          />
-          <KpiCard
-            label="Broker Fees"
-            value={<Money value={costs.totalFeesBase.toString()} currency={performance.baseCurrency} />}
-          />
-          <KpiCard
-            label="Taxes"
-            value={<Money value={costs.totalTaxesBase.toString()} currency={performance.baseCurrency} />}
-            sublabel={
-              latestYearCosts ? (
-                <>
-                  <Money value={latestYearCosts.taxesBase.toString()} currency={performance.baseCurrency} />{" "}
-                  in {latestYearCosts.year}
-                </>
-              ) : undefined
-            }
-          />
-        </div>
-      </div>
-
-      <BenchmarkCard
-        initialTicker={benchmark.benchmarkTicker}
-        initialPoints={benchmark.points}
-        initialError={benchmark.benchmarkError}
-        currency={performance.baseCurrency}
+      <AnalyticsTabs
+        performance={
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <KpiCard
+                label="Money-Weighted Return (XIRR)"
+                value={
+                  performance.xirr ? (
+                    <Percent value={performance.xirr.toString()} signDisplay="always" />
+                  ) : (
+                    "Not computable"
+                  )
+                }
+                sublabel="Annualized, accounts for the timing of deposits/withdrawals"
+                tone={pnlTone(performance.xirr)}
+              />
+              <KpiCard
+                label="Total Return"
+                value={
+                  performance.totalReturn ? (
+                    <Percent value={performance.totalReturn.toString()} signDisplay="always" />
+                  ) : (
+                    "Not computable"
+                  )
+                }
+                sublabel="Ending value vs. net cash contributed"
+                tone={pnlTone(performance.totalReturn)}
+              />
+              <KpiCard
+                label="Net Cash Contributed"
+                value={
+                  <Money
+                    value={performance.netExternalCashIn.toString()}
+                    currency={performance.baseCurrency}
+                  />
+                }
+                sublabel={
+                  performance.hasMissingFx ? "Incomplete — missing FX rate" : "Deposits minus withdrawals"
+                }
+              />
+            </div>
+            <BenchmarkCard
+              initialTicker={benchmark.benchmarkTicker}
+              initialPoints={benchmark.points}
+              initialError={benchmark.benchmarkError}
+              currency={performance.baseCurrency}
+            />
+          </>
+        }
+        risk={
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiCard
+                label="Max Drawdown"
+                value={<Percent value={drawdown.maxDrawdown.toString()} />}
+                sublabel={
+                  drawdown.maxDrawdownDate
+                    ? `Worst point: ${formatDate(drawdown.maxDrawdownDate)}`
+                    : "No decline from a peak yet"
+                }
+                tone={drawdown.maxDrawdown.isZero() ? undefined : "negative"}
+              />
+              <KpiCard
+                label="Top 3 Concentration"
+                value={<Percent value={holdingsInsights.topConcentration.toString()} />}
+                sublabel="Share of value in your 3 largest positions"
+              />
+              <KpiCard
+                label="Best Holding"
+                value={holdingsInsights.best ? holdingsInsights.best.ticker : "—"}
+                sublabel={
+                  holdingsInsights.best?.unrealizedPnLPercent ? (
+                    <Percent
+                      value={holdingsInsights.best.unrealizedPnLPercent.toString()}
+                      signDisplay="always"
+                    />
+                  ) : (
+                    "No holdings with a computable return"
+                  )
+                }
+                tone="positive"
+              />
+              <KpiCard
+                label="Worst Holding"
+                value={holdingsInsights.worst ? holdingsInsights.worst.ticker : "—"}
+                sublabel={
+                  holdingsInsights.worst?.unrealizedPnLPercent ? (
+                    <Percent
+                      value={holdingsInsights.worst.unrealizedPnLPercent.toString()}
+                      signDisplay="always"
+                    />
+                  ) : (
+                    "No holdings with a computable return"
+                  )
+                }
+                tone="negative"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <KpiCard
+                label="Sharpe Ratio"
+                value={volatility.sharpeRatio ? volatility.sharpeRatio.toFixed(2) : "—"}
+                sublabel="Annualized, assumes 0% risk-free rate"
+                tone={
+                  volatility.sharpeRatio
+                    ? volatility.sharpeRatio.greaterThanOrEqualTo(0)
+                      ? "positive"
+                      : "negative"
+                    : undefined
+                }
+              />
+              <KpiCard
+                label="Sortino Ratio"
+                value={volatility.sortinoRatio ? volatility.sortinoRatio.toFixed(2) : "—"}
+                sublabel="Like Sharpe, but only penalizes downside moves"
+                tone={
+                  volatility.sortinoRatio
+                    ? volatility.sortinoRatio.greaterThanOrEqualTo(0)
+                      ? "positive"
+                      : "negative"
+                    : undefined
+                }
+              />
+              <KpiCard
+                label="Beta"
+                value={beta ? beta.toFixed(2) : "—"}
+                sublabel={`vs. ${benchmark.benchmarkTicker} — 1.00 = moves with the market`}
+              />
+            </div>
+            <StressTestCard
+              holdingsValueBase={holdingsValueBase.toString()}
+              cashBase={snapshot.cashBalance.balanceBase.toString()}
+              baseCurrency={performance.baseCurrency}
+            />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Diversification</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Correlation of daily returns between each pair of holdings — near +1.00 means
+                  they move almost in lockstep (not real diversification, even if they&apos;re in
+                  different sectors), near 0 or negative means they genuinely offset each other.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <CorrelationMatrix tickers={correlation.tickers} cells={correlation.cells} />
+              </CardContent>
+            </Card>
+          </>
+        }
+        costs={
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <KpiCard
+              label="Total Fees &amp; Taxes"
+              value={<Money value={totalCostsBase.toString()} currency={performance.baseCurrency} />}
+              sublabel={costs.hasMissingFx ? "Incomplete — missing FX rate" : "Since your first transaction"}
+              highlight
+            />
+            <KpiCard
+              label="Broker Fees"
+              value={<Money value={costs.totalFeesBase.toString()} currency={performance.baseCurrency} />}
+            />
+            <KpiCard
+              label="Taxes"
+              value={<Money value={costs.totalTaxesBase.toString()} currency={performance.baseCurrency} />}
+              sublabel={
+                latestYearCosts ? (
+                  <>
+                    <Money
+                      value={latestYearCosts.taxesBase.toString()}
+                      currency={performance.baseCurrency}
+                    />{" "}
+                    in {latestYearCosts.year}
+                  </>
+                ) : undefined
+              }
+            />
+          </div>
+        }
       />
 
       <Card>
