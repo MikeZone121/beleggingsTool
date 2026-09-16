@@ -5,14 +5,21 @@ import { getDefaultPortfolio } from "@/lib/db/portfolios";
 import { getPortfolioSnapshot } from "@/lib/portfolio/holdingsService";
 import { getRebalancingPlan } from "@/lib/portfolio/rebalancingService";
 import { getTodaySummary } from "@/lib/portfolio/todayMoversService";
-import { getDividendSnapshot, getDividendCalendar } from "@/lib/dividends/dividendService";
+import {
+  getDividendSnapshot,
+  getDividendCalendar,
+  summarizeDividendOutlook,
+} from "@/lib/dividends/dividendService";
 import { calculateAllocation } from "@/lib/finance/allocation";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
 import { RebalancingCard, type RebalancingPlanData } from "@/components/dashboard/rebalancing-card";
 import { RefreshAllButton } from "@/components/dashboard/refresh-all-button";
 import { TodayCard } from "@/components/dashboard/today-card";
-import { NextDividendCard } from "@/components/dashboard/next-dividend-card";
+import {
+  DividendOutlookCard,
+  type DividendOutlookPayment,
+} from "@/components/dashboard/dividend-outlook-card";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,9 +56,15 @@ export default async function DashboardPage() {
     ]);
   const { baseCurrency } = snapshot;
 
-  // getDividendCalendar already sorts by estimated ex-date ascending, so
-  // the first row is the nearest upcoming one.
-  const nextDividend = dividendCalendar.at(0) ?? null;
+  const dividendOutlook = summarizeDividendOutlook(dividendCalendar);
+  const toOutlookPayment = (row: (typeof dividendCalendar)[number]): DividendOutlookPayment => ({
+    securityId: row.securityId,
+    ticker: row.ticker,
+    name: row.name,
+    exDate: row.estimate.estimatedNextExDate.toISOString(),
+    netBase: row.payout.netBase?.toString() ?? null,
+    daysUntil: row.daysUntilExDate,
+  });
 
   // Total return = price appreciation (realized + unrealized) plus every
   // dividend ever received, all in the base currency — the one number a
@@ -138,13 +151,15 @@ export default async function DashboardPage() {
           baseCurrency={baseCurrency}
           hasData={todaySummary.hasData}
         />
-        <NextDividendCard
-          ticker={nextDividend?.ticker ?? null}
-          name={nextDividend?.name ?? null}
-          exDate={nextDividend?.estimate.estimatedNextExDate.toISOString() ?? null}
-          netBase={nextDividend?.payout.netBase?.toString() ?? null}
+        <DividendOutlookCard
+          windowDays={dividendOutlook.windowDays}
+          payments={dividendOutlook.upcoming.map(toOutlookPayment)}
+          totalNetBase={dividendOutlook.totalNetBase.toString()}
+          hasMissingFx={dividendOutlook.hasMissingFx}
+          nextBeyondWindow={
+            dividendOutlook.next ? toOutlookPayment(dividendOutlook.next) : null
+          }
           baseCurrency={baseCurrency}
-          daysUntil={nextDividend?.daysUntilExDate ?? null}
         />
       </div>
 

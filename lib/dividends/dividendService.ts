@@ -182,3 +182,61 @@ export async function getDividendCalendar(
     (a, b) => a.estimate.estimatedNextExDate.getTime() - b.estimate.estimatedNextExDate.getTime()
   );
 }
+
+/** How far ahead the dashboard's dividend card looks. A month is the span
+ * worth planning around — long enough that a quarterly payer usually has
+ * something in it, short enough that everything in it is still a reasonable
+ * projection rather than a guess three cadences out. */
+export const DIVIDEND_OUTLOOK_WINDOW_DAYS = 30;
+
+export interface DividendOutlook {
+  windowDays: number;
+  /** Projected payments from today through `windowDays`, soonest first. */
+  upcoming: DividendCalendarRow[];
+  /** Total estimated net across `upcoming`, in the base currency. */
+  totalNetBase: Decimal;
+  /** True when a payment in the window had no FX rate, so the total covers
+   * only part of the window. */
+  hasMissingFx: boolean;
+  /** The nearest upcoming payment even when it falls beyond the window, so
+   * the card can still say when the next one is rather than going blank. */
+  next: DividendCalendarRow | null;
+}
+
+/**
+ * Narrows the full projection table (see `getDividendCalendar`) to the
+ * dashboard's look-ahead window and totals it.
+ *
+ * Pure, and separate from the query, so the window is one constant rather
+ * than a filter condition repeated per caller.
+ */
+export function summarizeDividendOutlook(
+  rows: DividendCalendarRow[],
+  windowDays: number = DIVIDEND_OUTLOOK_WINDOW_DAYS
+): DividendOutlook {
+  // A projection is `lastExDate + interval`, which lands in the *past* for
+  // a security whose dividend history hasn't been synced in a while (or
+  // that quietly stopped paying). Those are stale guesses, not upcoming
+  // payments — dropping them here keeps them out of the total and stops
+  // the card announcing a payment "today" for a date months gone.
+  const upcomingAll = rows.filter((row) => row.daysUntilExDate >= 0);
+  const upcoming = upcomingAll.filter((row) => row.daysUntilExDate <= windowDays);
+
+  let totalNetBase = new Decimal(0);
+  let hasMissingFx = false;
+  for (const row of upcoming) {
+    if (row.payout.netBase === null) {
+      hasMissingFx = true;
+      continue;
+    }
+    totalNetBase = totalNetBase.plus(row.payout.netBase);
+  }
+
+  return {
+    windowDays,
+    upcoming,
+    totalNetBase,
+    hasMissingFx,
+    next: upcomingAll.at(0) ?? null,
+  };
+}
