@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MODEL_PORTFOLIOS, resolveModelPortfolioTargets } from "@/lib/finance/modelPortfolios";
 
 export interface RebalancingRowData {
   key: string;
@@ -210,6 +211,64 @@ function DimensionTable({ plan, baseCurrency }: { plan: RebalancingPlanData; bas
   );
 }
 
+/**
+ * Bulk-applies a standard growth/defensive split as Rebalancing targets
+ * for the asset-type dimension — the existing Current/Target/Drift/
+ * Suggested table below already *is* the "vs. model portfolio"
+ * comparison, this just fills it in with one click instead of typing
+ * every bucket's percentage by hand. Only meaningful for `assetType`:
+ * "growth vs. defensive" has no equivalent split for sector or currency.
+ */
+function ModelPortfolioPresets({ heldKeys }: { heldKeys: string[] }) {
+  const router = useRouter();
+  const [applyingId, setApplyingId] = useState<string | null>(null);
+
+  async function applyPreset(modelId: string) {
+    const model = MODEL_PORTFOLIOS.find((m) => m.id === modelId);
+    if (!model) return;
+
+    setApplyingId(modelId);
+    try {
+      const targets = resolveModelPortfolioTargets(model, heldKeys);
+      const results = await Promise.all(
+        Object.entries(targets).map(([key, percent]) =>
+          fetch("/api/allocation-targets", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ dimension: "assetType", key, targetPercent: percent.toString() }),
+          })
+        )
+      );
+      if (results.some((r) => !r.ok)) {
+        toast.error("Failed to apply some targets — try again");
+        return;
+      }
+      toast.success(`Applied "${model.label}" as your target allocation`);
+      router.refresh();
+    } finally {
+      setApplyingId(null);
+    }
+  }
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-muted-foreground">Compare to a model portfolio:</span>
+      {MODEL_PORTFOLIOS.map((model) => (
+        <Button
+          key={model.id}
+          variant="outline"
+          size="sm"
+          title={model.description}
+          disabled={applyingId !== null}
+          onClick={() => applyPreset(model.id)}
+        >
+          {applyingId === model.id ? "Applying…" : model.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 export function RebalancingCard({ plans, baseCurrency }: RebalancingCardProps) {
   const byDimension = new Map(plans.map((p) => [p.dimension, p]));
 
@@ -235,7 +294,12 @@ export function RebalancingCard({ plans, baseCurrency }: RebalancingCardProps) {
             return (
               <TabsContent key={dimension} value={dimension} className="pt-4">
                 {plan && plan.rows.length > 0 ? (
-                  <DimensionTable plan={plan} baseCurrency={baseCurrency} />
+                  <>
+                    {dimension === "assetType" && (
+                      <ModelPortfolioPresets heldKeys={plan.rows.map((r) => r.key)} />
+                    )}
+                    <DimensionTable plan={plan} baseCurrency={baseCurrency} />
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">No holdings in this dimension yet.</p>
                 )}
