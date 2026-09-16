@@ -16,7 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="flex min-h-screen">
         <aside className="hidden w-60 shrink-0 border-r bg-sidebar md:flex md:flex-col">
           <div className="flex h-14 items-center border-b px-4 text-sm font-semibold">
-            Snowcap
+            Canopy
           </div>
           <SidebarNav />
         </aside>

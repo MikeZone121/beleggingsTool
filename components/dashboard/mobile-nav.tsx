@@ -25,7 +25,7 @@ export function MobileNav() {
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
         <SheetHeader className="border-b">
-          <SheetTitle>Snowcap</SheetTitle>
+          <SheetTitle>Canopy</SheetTitle>
         </SheetHeader>
         <SidebarNav onNavigate={() => setOpen(false)} />
       </SheetContent>

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Snowcap — Portfolio & Dividend Analytics",
+  title: "Canopy — Portfolio & Dividend Analytics",
   description: "Personal portfolio, performance, and dividend income analytics.",
 };
 
