@@ -85,10 +85,17 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
             className={`flex flex-col gap-1 p-3 ${item.targetReached ? "bg-emerald-500/10" : ""}`}
           >
             <div className="flex items-start justify-between gap-2">
-              <Link href={`/watchlist/${item.securityId}`} className="min-w-0 hover:underline">
-                <div className="font-medium">{item.ticker}</div>
-                <div className="truncate text-xs text-muted-foreground">{item.name}</div>
-              </Link>
+              <div className="min-w-0">
+                <Link href={`/watchlist/${item.securityId}`} className="block hover:underline">
+                  <div className="font-medium">{item.ticker}</div>
+                  <div className="truncate text-xs text-muted-foreground">{item.name}</div>
+                </Link>
+                {item.notes && (
+                  <div className="mt-0.5 truncate text-xs italic text-muted-foreground" title={item.notes}>
+                    {item.notes}
+                  </div>
+                )}
+              </div>
               <div className="flex shrink-0 items-center gap-1">
                 <div className="text-right">
                   {item.currentPrice ? (
@@ -129,12 +136,15 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
                   </Badge>
                 )}
               </span>
-              <EditTargetPricePopover
-                id={item.id}
-                ticker={item.ticker}
-                currency={item.currency}
-                targetPrice={item.targetPrice}
-              />
+              <div className="flex items-center gap-1">
+                <EditNotesPopover id={item.id} ticker={item.ticker} notes={item.notes} />
+                <EditTargetPricePopover
+                  id={item.id}
+                  ticker={item.ticker}
+                  currency={item.currency}
+                  targetPrice={item.targetPrice}
+                />
+              </div>
             </div>
           </div>
         ))}
@@ -147,7 +157,7 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-right">Today</TableHead>
             <TableHead className="text-right">Target</TableHead>
-            <TableHead className="w-10" />
+            <TableHead className="w-20" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -170,6 +180,14 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
                   <div className="font-medium">{item.ticker}</div>
                   <div className="text-xs text-muted-foreground">{item.name}</div>
                 </Link>
+                {item.notes && (
+                  <div
+                    className="mt-0.5 max-w-[260px] truncate text-xs italic text-muted-foreground"
+                    title={item.notes}
+                  >
+                    {item.notes}
+                  </div>
+                )}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 <div className="flex items-center justify-end gap-1">
@@ -209,15 +227,18 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
                 </div>
               </TableCell>
               <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Remove from watchlist"
-                  disabled={isPending}
-                  onClick={() => handleRemove(item.id, item.ticker)}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                <div className="flex items-center justify-end gap-1">
+                  <EditNotesPopover id={item.id} ticker={item.ticker} notes={item.notes} />
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Remove from watchlist"
+                    disabled={isPending}
+                    onClick={() => handleRemove(item.id, item.ticker)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
