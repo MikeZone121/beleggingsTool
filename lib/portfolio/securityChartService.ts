@@ -6,6 +6,12 @@ import { calculateSMA, calculateFibonacciLevels } from "@/lib/finance/technicalI
 export interface SecurityChartPoint {
   date: string;
   close: number;
+  /** Null when the provider/backfill didn't return an intraday range for
+   * this day — the candlestick view simply skips that day rather than
+   * guessing a range from the close alone. */
+  open: number | null;
+  high: number | null;
+  low: number | null;
   sma25: number | null;
   sma50: number | null;
   sma100: number | null;
@@ -50,7 +56,13 @@ export async function getSecurityChartData(securityId: string): Promise<Security
     };
   }
 
-  const prices = priceRows.map((row) => ({ date: row.date, close: new Decimal(row.close.toString()) }));
+  const prices = priceRows.map((row) => ({
+    date: row.date,
+    close: new Decimal(row.close.toString()),
+    open: row.open ? new Decimal(row.open.toString()) : null,
+    high: row.high ? new Decimal(row.high.toString()) : null,
+    low: row.low ? new Decimal(row.low.toString()) : null,
+  }));
   const sma25 = calculateSMA(prices, 25);
   const sma50 = calculateSMA(prices, 50);
   const sma100 = calculateSMA(prices, 100);
@@ -69,6 +81,9 @@ export async function getSecurityChartData(securityId: string): Promise<Security
   const points: SecurityChartPoint[] = prices.map((p, i) => ({
     date: p.date.toISOString().slice(0, 10),
     close: p.close.toNumber(),
+    open: p.open?.toNumber() ?? null,
+    high: p.high?.toNumber() ?? null,
+    low: p.low?.toNumber() ?? null,
     sma25: sma25[i].value?.toNumber() ?? null,
     sma50: sma50[i].value?.toNumber() ?? null,
     sma100: sma100[i].value?.toNumber() ?? null,
