@@ -30,11 +30,16 @@ export function PrivacyModeProvider({
   const [hidden, setHidden] = useState(initialHidden);
 
   function toggle() {
-    setHidden((prev) => {
-      const next = !prev;
-      void setPrivacyModeCookie(next);
-      return next;
-    });
+    // The Server Action call here touches Next.js's router internals to
+    // schedule a refresh once it resolves — doing that from inside a
+    // useState updater (as this used to) counts as a side effect during
+    // React's state-resolution phase, which is what produced "Cannot
+    // update a component (Router) while rendering a different component
+    // (PrivacyModeProvider)". Keeping it in the plain event-handler body
+    // instead is the safe place for it.
+    const next = !hidden;
+    setHidden(next);
+    void setPrivacyModeCookie(next);
   }
 
   return (
