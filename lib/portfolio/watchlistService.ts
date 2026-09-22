@@ -1,7 +1,8 @@
-import Decimal from "decimal.js";
 import { listWatchlist } from "@/lib/db/watchlist";
 import { getPreviousClosePrices } from "@/lib/db/prices";
 import { toCurrentPrice } from "@/lib/db/mappers";
+import { dayChangeFraction, isPriceStale } from "@/lib/finance/priceChange";
+import Decimal from "decimal.js";
 
 export interface WatchlistRow {
   id: string;
@@ -10,6 +11,10 @@ export interface WatchlistRow {
   name: string;
   currency: string;
   currentPrice: string | null;
+  /** ISO timestamp of when `currentPrice` was last fetched — what makes
+   * "is this price actually current?" answerable on the page rather than
+   * only inferable from a badge. */
+  priceAsOf: string | null;
   priceStale: boolean;
   dayChangePercent: string | null;
   notes: string | null;
@@ -37,15 +42,11 @@ export async function getWatchlistSnapshot(userId: string): Promise<WatchlistRow
 
   return items.map((item) => {
     const currentPrice = toCurrentPrice(item.security);
-    const previousClose = previousCloses.get(item.securityId);
-    const dayChangePercent =
-      currentPrice && previousClose && !new Decimal(previousClose).isZero()
-        ? currentPrice.price.minus(previousClose).dividedBy(previousClose)
-        : null;
-    // Same 24h staleness threshold as deriveHoldings (lib/finance/holdings.ts).
-    const priceStale = currentPrice
-      ? new Date().getTime() - currentPrice.asOf.getTime() > 24 * 60 * 60 * 1000
-      : false;
+    const dayChangePercent = dayChangeFraction(
+      currentPrice?.price,
+      previousCloses.get(item.securityId)
+    );
+    const priceStale = currentPrice ? isPriceStale(currentPrice.asOf) : false;
     const targetPrice = item.targetPrice ? new Decimal(item.targetPrice.toString()) : null;
     const targetReached = Boolean(
       currentPrice && targetPrice && currentPrice.price.lessThanOrEqualTo(targetPrice)
@@ -58,6 +59,7 @@ export async function getWatchlistSnapshot(userId: string): Promise<WatchlistRow
       name: item.security.name,
       currency: item.security.currency,
       currentPrice: currentPrice?.price.toString() ?? null,
+      priceAsOf: currentPrice?.asOf.toISOString() ?? null,
       priceStale,
       dayChangePercent: dayChangePercent?.toString() ?? null,
       notes: item.notes,

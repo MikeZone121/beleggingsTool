@@ -12,18 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Money, Percent } from "@/components/ui/money";
 import { EditTargetPricePopover } from "./edit-target-price-popover";
 import { EditNotesPopover } from "./edit-notes-popover";
+import { pnlToneClass } from "@/lib/utils/format";
 import type { WatchlistRow } from "@/lib/portfolio/watchlistService";
 
 interface WatchlistTableProps {
   items: WatchlistRow[];
-}
-
-function dayChangeToneClass(value: string | null): string {
-  if (!value) return "";
-  const n = Number(value);
-  if (n > 0) return "text-emerald-600 dark:text-emerald-400";
-  if (n < 0) return "text-red-600 dark:text-red-400";
-  return "";
 }
 
 export function WatchlistTable({ items }: WatchlistTableProps) {
@@ -103,7 +96,7 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
                   ) : (
                     <Badge variant="secondary">no price</Badge>
                   )}
-                  <div className={`text-xs tabular-nums ${dayChangeToneClass(item.dayChangePercent)}`}>
+                  <div className={`text-xs tabular-nums ${pnlToneClass(item.dayChangePercent)}`}>
                     {item.dayChangePercent ? (
                       <Percent value={item.dayChangePercent} signDisplay="always" />
                     ) : (
@@ -199,7 +192,7 @@ export function WatchlistTable({ items }: WatchlistTableProps) {
                   {item.priceStale && item.currentPrice && <Badge variant="secondary">stale</Badge>}
                 </div>
               </TableCell>
-              <TableCell className={`text-right tabular-nums ${dayChangeToneClass(item.dayChangePercent)}`}>
+              <TableCell className={`text-right tabular-nums ${pnlToneClass(item.dayChangePercent)}`}>
                 {item.dayChangePercent ? (
                   <Percent value={item.dayChangePercent} signDisplay="always" />
                 ) : (

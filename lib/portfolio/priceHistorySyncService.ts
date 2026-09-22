@@ -1,6 +1,6 @@
 import { getSecurityById, listSecurities } from "@/lib/db/securities";
 import { getEarliestTransactionDateForSecurity } from "@/lib/db/transactions";
-import { getEarliestPriceDate, upsertPrice } from "@/lib/db/prices";
+import { getEarliestPriceDate, getLatestPriceDate, upsertPrice } from "@/lib/db/prices";
 import { listWatchedSecurityIds } from "@/lib/db/watchlist";
 import {
   getFinancialDataProvider,
@@ -29,6 +29,18 @@ const LOOKBACK_PADDING_DAYS = 10;
  * year of chart to actually show once the SMA 100 catches up, so fall
  * back to a fixed window rather than skipping it entirely. */
 const WATCHLIST_LOOKBACK_DAYS = 500;
+/** How far back a forward-fill re-fetches. More than the longest weekend or
+ * market holiday, so the gap between the last cached close and today is
+ * always covered, and wide enough that a close the provider later revises
+ * gets overwritten rather than kept forever. */
+const FORWARD_FILL_WINDOW_DAYS = 15;
+
+/** Today at UTC midnight — `Price.date` is a date column, so comparing
+ * against a timestamp would make "is the series current?" depend on the
+ * time of day the check happens to run. */
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
 
 interface HistoricalSecurity {
   id: string;
@@ -37,22 +49,40 @@ interface HistoricalSecurity {
 }
 
 /**
- * Backfills one security's daily closes from `earliestNeeded` to today,
- * skipping the fetch entirely when the cached series already reaches that
- * far back. Returns false when it skipped, true when it wrote.
+ * Brings one security's daily closes up to date at both ends: back to
+ * `earliestNeeded`, and forward to today. Returns false when the cached
+ * series already covers both, true when it wrote.
+ *
+ * Checking *both* ends matters. This used to check only the earliest
+ * cached date, which made every later sync a no-op the moment the series
+ * reached far enough back — so a watchlist ticker's chart, its SMAs and
+ * its day-over-day change silently froze on the day it was added, no
+ * matter how often prices were refreshed afterwards (`Security.currentPrice`
+ * kept updating, the `Price` rows behind the chart did not).
  */
-async function backfillSecurityHistory(
+async function syncSecurityHistory(
   provider: FinancialDataProvider,
   security: HistoricalSecurity,
   earliestNeeded: Date,
   today: Date
 ): Promise<boolean> {
-  const earliestOnRecord = await getEarliestPriceDate(security.id);
-  if (earliestOnRecord && earliestOnRecord <= earliestNeeded) return false;
+  const [earliestOnRecord, latestOnRecord] = await Promise.all([
+    getEarliestPriceDate(security.id),
+    getLatestPriceDate(security.id),
+  ]);
+  const needsBackfill = !earliestOnRecord || earliestOnRecord > earliestNeeded;
+  const needsForwardFill = !latestOnRecord || latestOnRecord < startOfUtcDay(today);
+  if (!needsBackfill && !needsForwardFill) return false;
+
+  // A backfill has to re-fetch the whole range anyway (it ends at today);
+  // a series that only lost its forward edge just needs the recent window.
+  const from = needsBackfill
+    ? new Date(earliestNeeded.getTime() - LOOKBACK_PADDING_DAYS * DAY_MS)
+    : new Date(latestOnRecord!.getTime() - FORWARD_FILL_WINDOW_DAYS * DAY_MS);
 
   const points = await provider.getHistoricalPrices(
     security.ticker,
-    new Date(earliestNeeded.getTime() - LOOKBACK_PADDING_DAYS * DAY_MS),
+    from,
     today,
     security.exchange
   );
@@ -71,11 +101,11 @@ async function backfillSecurityHistory(
 }
 
 /**
- * Backfills the `WATCHLIST_LOOKBACK_DAYS` window for a single security,
- * for the moment one is added to a watchlist: until this runs the security
- * has no `Price` rows at all, so its price chart, SMAs, Fibonacci levels
- * and day-over-day change are all empty — and they'd stay empty until the
- * user happened to trigger a portfolio-wide refresh from another page.
+ * Syncs the `WATCHLIST_LOOKBACK_DAYS` window for a single security — for
+ * the moment one is added to a watchlist (until this runs it has no `Price`
+ * rows at all, so its chart, SMAs, Fibonacci levels and day-over-day
+ * change are empty), and for every later refresh of that watchlist, which
+ * extends the same window forward to today.
  */
 export async function syncPriceHistoryForSecurity(securityId: string): Promise<boolean> {
   const security = await getSecurityById(securityId);
@@ -86,7 +116,7 @@ export async function syncPriceHistoryForSecurity(securityId: string): Promise<b
   const earliestNeeded =
     earliestTransactionDate ?? new Date(today.getTime() - WATCHLIST_LOOKBACK_DAYS * DAY_MS);
 
-  return backfillSecurityHistory(getFinancialDataProvider(), security, earliestNeeded, today);
+  return syncSecurityHistory(getFinancialDataProvider(), security, earliestNeeded, today);
 }
 
 /**
@@ -95,9 +125,9 @@ export async function syncPriceHistoryForSecurity(securityId: string): Promise<b
  * transaction — this is what the benchmark chart (see
  * `lib/performance/portfolioValueHistoryService.ts`) replays to reconstruct
  * portfolio value at past dates, since `Security.currentPrice` only ever
- * holds today's price. Same "check coverage, backfill only the gap"
- * pattern as `refreshExchangeRates`, so this stays cheap after the first
- * run.
+ * holds today's price. Same "check coverage, fetch only the gap" pattern as
+ * `refreshExchangeRates`, so this stays cheap after the first run: once a
+ * series is current, every security is skipped without a request.
  *
  * Also covers securities that are only on a watchlist (no transactions at
  * all) — otherwise their day-over-day change on the Watchlist page has
@@ -134,7 +164,7 @@ export async function syncPriceHistory(): Promise<PriceHistorySyncSummary> {
     }
 
     try {
-      if (await backfillSecurityHistory(provider, security, earliestNeeded, today)) {
+      if (await syncSecurityHistory(provider, security, earliestNeeded, today)) {
         updated += 1;
       } else {
         skipped += 1;

@@ -1,6 +1,10 @@
 import Decimal from "decimal.js";
 import type { DomainTransaction, SplitEvent, RealizedGain } from "@/types/domain";
-import { computeAverageCostLedger, type FxContext } from "./costBasis";
+import {
+  computeAverageCostLedger,
+  type FiscalStepUp,
+  type FxContext,
+} from "./costBasis";
 import { ZERO } from "./money";
 
 /**
@@ -9,11 +13,17 @@ import { ZERO } from "./money";
  * unrealized P&L are always consistent with one another). Pass `fxContext`
  * to also get each gain's base-currency equivalents (see costBasis.ts for
  * why base-currency cost basis uses historical, per-transaction rates).
+ *
+ * `stepUpBySecurity` re-bases each security's cost basis on a given date
+ * instead of using what was actually paid — only for the Belgian
+ * capital-gains regime's 31/12/2025 reference value, never for reported
+ * accounting P&L (see lib/finance/capitalGainsTax.ts).
  */
 export function calculateRealizedGains(
   transactions: DomainTransaction[],
   splitsBySecurity: Map<string, SplitEvent[]> = new Map(),
-  fxContext?: FxContext
+  fxContext?: FxContext,
+  stepUpBySecurity: Map<string, FiscalStepUp> = new Map()
 ): RealizedGain[] {
   const bySecurity = new Map<string, DomainTransaction[]>();
   for (const tx of transactions) {
@@ -29,7 +39,8 @@ export function calculateRealizedGains(
       securityId,
       txs,
       splitsBySecurity.get(securityId) ?? [],
-      fxContext
+      fxContext,
+      stepUpBySecurity.get(securityId)
     );
     gains.push(...ledger.realizedGains);
   }

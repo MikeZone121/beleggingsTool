@@ -75,6 +75,56 @@ export function pnlTone(value: Decimal | null | undefined): "positive" | "negati
   return "neutral";
 }
 
+/** Units big enough to matter for "how fresh is this price?", largest
+ * first — anything under a minute reads as "just now". */
+const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ["year", 365 * 24 * 60 * 60 * 1000],
+  ["month", 30 * 24 * 60 * 60 * 1000],
+  ["day", 24 * 60 * 60 * 1000],
+  ["hour", 60 * 60 * 1000],
+  ["minute", 60 * 1000],
+];
+
+/**
+ * "3 hours ago" / "in 2 days", in the user's own locale. Used for data
+ * freshness, where the exact timestamp matters less than whether it is
+ * minutes or weeks old — a formatted date can't distinguish "this
+ * morning's price" from "this morning a month ago" at a glance.
+ */
+export function formatRelativeTime(
+  value: Date | string | null | undefined,
+  options: { locale?: string; now?: Date } = {}
+): string {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(value) : value;
+  const elapsed = (options.now ?? new Date()).getTime() - date.getTime();
+  const formatter = new Intl.RelativeTimeFormat(options.locale ?? DEFAULT_LOCALE, {
+    numeric: "auto",
+  });
+  for (const [unit, ms] of RELATIVE_UNITS) {
+    if (Math.abs(elapsed) >= ms) {
+      // Negative = in the past, which is what RelativeTimeFormat expects.
+      return formatter.format(-Math.round(elapsed / ms), unit);
+    }
+  }
+  // Seconds, not minutes, for the sub-minute case: `format(0, "minute")`
+  // renders as "binnen een minuut" / "this minute", which reads like a
+  // prediction rather than "just now".
+  return formatter.format(0, "second");
+}
+
+/** Tailwind text colour for a gain/loss, light and dark — kept next to
+ * `pnlTone` so the tables, KPI cards and detail headers that all colour a
+ * number this way can't drift into different greens. Empty string for a
+ * neutral value, so callers can drop it into a class list unconditionally. */
+export function pnlToneClass(value: Numeric): string {
+  if (value === null || value === undefined || value === "") return "";
+  const tone = pnlTone(value instanceof Decimal ? value : new Decimal(value));
+  if (tone === "positive") return "text-emerald-600 dark:text-emerald-400";
+  if (tone === "negative") return "text-red-600 dark:text-red-400";
+  return "";
+}
+
 export function formatDate(
   value: Date | string | null | undefined,
   options: { locale?: string } = {}

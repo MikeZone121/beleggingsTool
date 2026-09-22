@@ -10,6 +10,7 @@ import type {
 import { computeAverageCostLedger, type FxContext } from "./costBasis";
 import { convertToBase } from "./currency";
 import { ratioOf, ZERO } from "./money";
+import { isPriceStale } from "./priceChange";
 
 export interface SecurityMeta {
   id: string;
@@ -73,12 +74,10 @@ export function deriveHoldings(
     const currentPrice = currentPrices.get(securityId);
     const priceAsOf = currentPrice?.asOf ?? null;
     const now = new Date();
-    // "Stale" is intentionally coarse for MVP (manual price entry / daily
-    // refresh cadence): a price older than 24h is flagged rather than
-    // treated as wrong.
-    const priceStale = priceAsOf
-      ? now.getTime() - priceAsOf.getTime() > 24 * 60 * 60 * 1000
-      : true;
+    // No price at all counts as stale here (unlike the Watchlist, which
+    // shows "no price" in its own right) — a holding with no price has no
+    // market value, and that must not read as up to date.
+    const priceStale = priceAsOf ? isPriceStale(priceAsOf) : true;
 
     const marketValue = currentPrice
       ? ledger.quantity.times(currentPrice.price)

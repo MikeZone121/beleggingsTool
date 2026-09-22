@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fractionString } from "./decimal";
+import { fractionString, nonNegativeDecimalString } from "./decimal";
 
 /** The locales offered in Settings. A closed list rather than free text:
  * every value is passed straight to `Intl`, which silently falls back to
@@ -42,6 +42,10 @@ export const portfolioSettingsSchema = z.object({
     .transform((value) => (value.length === 0 ? null : value.toUpperCase()))
     .nullable(),
   dividendTaxRate: fractionString,
+  capitalGainsTaxRate: fractionString,
+  /** In the portfolio's base currency, not necessarily EUR — see
+   * lib/finance/capitalGainsTax.ts. */
+  capitalGainsExemption: nonNegativeDecimalString,
 });
 
 export type PortfolioSettingsInput = z.infer<typeof portfolioSettingsSchema>;

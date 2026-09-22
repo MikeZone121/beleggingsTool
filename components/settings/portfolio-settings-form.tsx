@@ -21,6 +21,10 @@ interface PortfolioSettingsFormProps {
   benchmarkTicker: string | null;
   /** Stored as a fraction ("0.3"); entered here as a percentage. */
   dividendTaxRate: string;
+  /** Also a fraction ("0.1") — the capital-gains rate. */
+  capitalGainsTaxRate: string;
+  /** A plain amount in the base currency, not a fraction. */
+  capitalGainsExemption: string;
 }
 
 interface FormValues {
@@ -28,6 +32,20 @@ interface FormValues {
   baseCurrency: string;
   benchmarkTicker: string;
   dividendTaxPercent: string;
+  capitalGainsTaxPercent: string;
+  capitalGainsExemption: string;
+}
+
+/** Decimal, not `Number(x) / 100` — the same rule as everywhere else in
+ * this app: a rate like 26.375% must not pick up binary floating-point
+ * noise on its way into the database. Returns null on unparseable input so
+ * the caller can report it instead of saving a NaN. */
+function percentToFraction(value: string): string | null {
+  try {
+    return new Decimal(value.replace(",", ".")).dividedBy(HUNDRED).toString();
+  } catch {
+    return null;
+  }
 }
 
 export function PortfolioSettingsForm({
@@ -35,6 +53,8 @@ export function PortfolioSettingsForm({
   baseCurrency,
   benchmarkTicker,
   dividendTaxRate,
+  capitalGainsTaxRate,
+  capitalGainsExemption,
 }: PortfolioSettingsFormProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +69,8 @@ export function PortfolioSettingsForm({
       baseCurrency,
       benchmarkTicker: benchmarkTicker ?? "",
       dividendTaxPercent: new Decimal(dividendTaxRate).times(HUNDRED).toString(),
+      capitalGainsTaxPercent: new Decimal(capitalGainsTaxRate).times(HUNDRED).toString(),
+      capitalGainsExemption,
     },
   });
 
@@ -57,16 +79,14 @@ export function PortfolioSettingsForm({
   const currencyChanged = watch("baseCurrency") !== baseCurrency;
 
   async function onSubmit(values: FormValues) {
-    let dividendTaxRateFraction: string;
-    try {
-      // Decimal, not `Number(x) / 100` — the same rule as everywhere else
-      // in this app: a rate like 26.375% must not pick up binary
-      // floating-point noise on its way into the database.
-      dividendTaxRateFraction = new Decimal(values.dividendTaxPercent.replace(",", "."))
-        .dividedBy(HUNDRED)
-        .toString();
-    } catch {
+    const dividendTaxRateFraction = percentToFraction(values.dividendTaxPercent);
+    if (dividendTaxRateFraction === null) {
       toast.error("Enter the withholding tax as a number, e.g. 30");
+      return;
+    }
+    const capitalGainsTaxRateFraction = percentToFraction(values.capitalGainsTaxPercent);
+    if (capitalGainsTaxRateFraction === null) {
+      toast.error("Enter the capital gains tax as a number, e.g. 10");
       return;
     }
 
@@ -80,6 +100,8 @@ export function PortfolioSettingsForm({
           baseCurrency: values.baseCurrency,
           benchmarkTicker: values.benchmarkTicker,
           dividendTaxRate: dividendTaxRateFraction,
+          capitalGainsTaxRate: capitalGainsTaxRateFraction,
+          capitalGainsExemption: values.capitalGainsExemption,
         }),
       });
       const result = await response.json();
@@ -164,6 +186,46 @@ export function PortfolioSettingsForm({
           )}
           <p className="text-xs text-muted-foreground">
             Used to estimate net dividend payouts. 30% is the Belgian flat rate.
+          </p>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="capitalGainsTaxPercent">Capital gains tax</FieldLabel>
+          <div className="flex items-center gap-2">
+            <Input
+              id="capitalGainsTaxPercent"
+              inputMode="decimal"
+              className="w-24"
+              {...register("capitalGainsTaxPercent", { required: "Required" })}
+            />
+            <span className="text-sm text-muted-foreground">%</span>
+          </div>
+          {errors.capitalGainsTaxPercent && (
+            <FieldError>{errors.capitalGainsTaxPercent.message}</FieldError>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Charged on the part of a year&apos;s net realized gain above the exemption. 10% is the
+            Belgian rate for gains realized from 2026.
+          </p>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="capitalGainsExemption">Annual gains exemption</FieldLabel>
+          <div className="flex items-center gap-2">
+            <Input
+              id="capitalGainsExemption"
+              inputMode="decimal"
+              className="w-32"
+              {...register("capitalGainsExemption", { required: "Required" })}
+            />
+            <span className="text-sm text-muted-foreground">{watch("baseCurrency")}</span>
+          </div>
+          {errors.capitalGainsExemption && (
+            <FieldError>{errors.capitalGainsExemption.message}</FieldError>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Tax-free net gain per calendar year. 10,000 per taxpayer in Belgium, indexed yearly —
+            set 20,000 if you report jointly with a spouse who has their own.
           </p>
         </Field>
       </div>

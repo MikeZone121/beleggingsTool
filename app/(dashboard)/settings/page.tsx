@@ -81,13 +81,15 @@ export default async function SettingsPage() {
 
       <SettingsSection
         title="Portfolio"
-        description="What currency you report in, what you measure yourself against, and how dividends are taxed."
+        description="What currency you report in, what you measure yourself against, and how dividends and realized gains are taxed."
       >
         <PortfolioSettingsForm
           name={portfolio.name}
           baseCurrency={portfolio.baseCurrency}
           benchmarkTicker={portfolio.benchmarkTicker}
           dividendTaxRate={portfolio.dividendTaxRate.toString()}
+          capitalGainsTaxRate={portfolio.capitalGainsTaxRate.toString()}
+          capitalGainsExemption={portfolio.capitalGainsExemption.toString()}
         />
         <div className="mt-5 grid gap-3 border-t border-border pt-5 text-sm sm:grid-cols-2">
           <div>

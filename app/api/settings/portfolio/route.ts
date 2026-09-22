@@ -38,6 +38,8 @@ export async function PATCH(request: Request) {
       baseCurrency: updated?.baseCurrency,
       benchmarkTicker: updated?.benchmarkTicker,
       dividendTaxRate: updated?.dividendTaxRate.toString(),
+      capitalGainsTaxRate: updated?.capitalGainsTaxRate.toString(),
+      capitalGainsExemption: updated?.capitalGainsExemption.toString(),
       baseCurrencyChanged,
       fxRefreshError,
     });

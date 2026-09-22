@@ -25,6 +25,11 @@ export interface WatchlistWarmupResult {
  *
  * Never throws: a provider outage must not block adding to a watchlist,
  * which is a purely local bookkeeping action.
+ *
+ * Also the per-ticker step behind the Watchlist page's Refresh button (see
+ * watchlistRefreshService.ts) — bringing a watched ticker up to date is
+ * the same work as warming a freshly added one, and both need the price
+ * and the history to move together.
  */
 export async function warmWatchlistSecurity(securityId: string): Promise<WatchlistWarmupResult> {
   try {

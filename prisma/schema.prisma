@@ -66,28 +66,38 @@ model User {
 }
 
 model Portfolio {
-  id                String             @id @default(cuid())
-  userId            String
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name              String
-  baseCurrency      String
+  id                    String             @id @default(cuid())
+  userId                String
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String
+  baseCurrency          String
   /// Locked in once the portfolio has any transactions - see lib/finance/costBasis.ts
-  accountingMethod  CostBasisMethod    @default(AVERAGE_COST)
+  accountingMethod      CostBasisMethod    @default(AVERAGE_COST)
   /// Ticker the Analytics page compares this portfolio against. Null falls
   /// back to DEFAULT_BENCHMARK_TICKER; it's nullable rather than defaulted
   /// so changing that default also moves every portfolio that never picked
   /// one of its own.
-  benchmarkTicker   String?
+  benchmarkTicker       String?
   /// Withholding rate applied to projected dividends (see
   /// lib/finance/dividendCalendar.ts). Defaults to the Belgian 30% flat
   /// "roerende voorheffing"; configurable because the same app is useful
   /// to someone taxed elsewhere.
-  dividendTaxRate   Decimal            @default(0.30) @db.Decimal(5, 4)
-  isDefault         Boolean            @default(true)
-  accounts          Account[]
-  allocationTargets AllocationTarget[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  dividendTaxRate       Decimal            @default(0.30) @db.Decimal(5, 4)
+  /// Flat rate on realized capital gains above the annual exemption (see
+  /// lib/finance/capitalGainsTax.ts). Defaults to the 10% Belgian
+  /// "meerwaardebelasting" in force for gains realized from 2026;
+  /// configurable for the same reason dividendTaxRate is.
+  capitalGainsTaxRate   Decimal            @default(0.10) @db.Decimal(5, 4)
+  /// Yearly capital-gains exemption, in this portfolio's base currency —
+  /// the Belgian EUR 10 000 per taxpayer. A setting rather than a constant
+  /// because it is indexed annually, and because spouses filing jointly
+  /// have one each (so 20 000 is a legitimate value here).
+  capitalGainsExemption Decimal            @default(10000) @db.Decimal(18, 4)
+  isDefault             Boolean            @default(true)
+  accounts              Account[]
+  allocationTargets     AllocationTarget[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   @@index([userId])
 }

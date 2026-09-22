@@ -58,6 +58,8 @@ export async function updatePortfolioSettings(
     baseCurrency: string;
     benchmarkTicker: string | null;
     dividendTaxRate: string;
+    capitalGainsTaxRate: string;
+    capitalGainsExemption: string;
   }
 ) {
   const result = await prisma.portfolio.updateMany({
@@ -67,6 +69,8 @@ export async function updatePortfolioSettings(
       baseCurrency: data.baseCurrency,
       benchmarkTicker: data.benchmarkTicker,
       dividendTaxRate: data.dividendTaxRate,
+      capitalGainsTaxRate: data.capitalGainsTaxRate,
+      capitalGainsExemption: data.capitalGainsExemption,
     },
   });
   if (result.count === 0) {

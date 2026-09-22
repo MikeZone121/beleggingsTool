@@ -1,7 +1,9 @@
 import Decimal from "decimal.js";
 import { getSecurityById } from "@/lib/db/securities";
-import { listPricesForSecurities } from "@/lib/db/prices";
+import { getPreviousClosePrices, listPricesForSecurities } from "@/lib/db/prices";
+import { toCurrentPrice } from "@/lib/db/mappers";
 import { calculateSMA, calculateFibonacciLevels } from "@/lib/finance/technicalIndicators";
+import { dayChangeFraction, isPriceStale } from "@/lib/finance/priceChange";
 
 export interface SecurityChartPoint {
   date: string;
@@ -30,6 +32,14 @@ export interface SecurityChartData {
   points: SecurityChartPoint[];
   /** Empty when there's no cached price history at all yet. */
   fibonacciLevels: SecurityFibonacciLevel[];
+  /** The live quote and its age, alongside the history — the chart alone
+   * can't show whether it stopped a day ago or a month ago, which is
+   * exactly what a reader needs to know before trusting it. Same
+   * definitions as the Watchlist table (see lib/finance/priceChange.ts). */
+  currentPrice: string | null;
+  priceAsOf: string | null;
+  priceStale: boolean;
+  dayChangePercent: string | null;
 }
 
 /**
@@ -44,7 +54,20 @@ export async function getSecurityChartData(securityId: string): Promise<Security
   const security = await getSecurityById(securityId);
   if (!security) return null;
 
-  const priceRows = await listPricesForSecurities([securityId]);
+  const [priceRows, previousCloses] = await Promise.all([
+    listPricesForSecurities([securityId]),
+    getPreviousClosePrices([securityId], new Date()),
+  ]);
+
+  const currentPrice = toCurrentPrice(security);
+  const quote = {
+    currentPrice: currentPrice?.price.toString() ?? null,
+    priceAsOf: currentPrice?.asOf.toISOString() ?? null,
+    priceStale: currentPrice ? isPriceStale(currentPrice.asOf) : false,
+    dayChangePercent:
+      dayChangeFraction(currentPrice?.price, previousCloses.get(securityId))?.toString() ?? null,
+  };
+
   if (priceRows.length === 0) {
     return {
       securityId,
@@ -53,6 +76,7 @@ export async function getSecurityChartData(securityId: string): Promise<Security
       currency: security.currency,
       points: [],
       fibonacciLevels: [],
+      ...quote,
     };
   }
 
@@ -96,5 +120,6 @@ export async function getSecurityChartData(securityId: string): Promise<Security
     currency: security.currency,
     points,
     fibonacciLevels,
+    ...quote,
   };
 }

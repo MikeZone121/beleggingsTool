@@ -321,3 +321,125 @@ describe("computeAverageCostLedger determinism", () => {
     expect(a.realizedGains[0].realizedPnL.equals(b.realizedGains[0].realizedPnL)).toBe(true);
   });
 });
+
+describe("computeAverageCostLedger fiscal step-up", () => {
+  const STEP_UP_DATE = new Date("2026-01-01");
+
+  it("re-bases the position held on the step-up date without touching quantity", () => {
+    resetSequence();
+    const result = computeAverageCostLedger(
+      "sec-1",
+      [tx({ type: "BUY", date: "2024-01-01", quantity: 10, price: 100 })],
+      [],
+      undefined,
+      { effectiveDate: STEP_UP_DATE, pricePerShare: d(150), pricePerShareBase: null }
+    );
+
+    expect(result.quantity.toString()).toBe("10");
+    expect(result.costBasis.toString()).toBe("1500");
+    expect(result.averageCost?.toString()).toBe("150");
+  });
+
+  it("measures a later sale against the stepped-up basis, not what was paid", () => {
+    resetSequence();
+    const transactions = [
+      tx({ type: "BUY", date: "2024-01-01", quantity: 10, price: 100 }),
+      tx({ type: "SELL", date: "2026-06-01", quantity: 10, price: 170 }),
+    ];
+
+    const accounting = computeAverageCostLedger("sec-1", transactions);
+    const fiscal = computeAverageCostLedger("sec-1", transactions, [], undefined, {
+      effectiveDate: STEP_UP_DATE,
+      pricePerShare: d(150),
+      pricePerShareBase: null,
+    });
+
+    expect(accounting.realizedGains[0].realizedPnL.toString()).toBe("700");
+    expect(fiscal.realizedGains[0].realizedPnL.toString()).toBe("200");
+  });
+
+  it("blends a post-step-up purchase into the stepped-up average", () => {
+    resetSequence();
+    const result = computeAverageCostLedger(
+      "sec-1",
+      [
+        tx({ type: "BUY", date: "2024-01-01", quantity: 10, price: 100 }),
+        tx({ type: "BUY", date: "2026-02-01", quantity: 10, price: 250 }),
+        tx({ type: "SELL", date: "2026-06-01", quantity: 20, price: 300 }),
+      ],
+      [],
+      undefined,
+      { effectiveDate: STEP_UP_DATE, pricePerShare: d(150), pricePerShareBase: null }
+    );
+
+    // (10 * 150 + 10 * 250) / 20 = 200 per share.
+    expect(result.realizedGains[0].costBasisRemoved.toString()).toBe("4000");
+    expect(result.realizedGains[0].realizedPnL.toString()).toBe("2000");
+  });
+
+  it("leaves a position opened after the step-up date alone", () => {
+    resetSequence();
+    const result = computeAverageCostLedger(
+      "sec-1",
+      [
+        tx({ type: "BUY", date: "2026-03-01", quantity: 5, price: 80 }),
+        tx({ type: "SELL", date: "2026-09-01", quantity: 5, price: 100 }),
+      ],
+      [],
+      undefined,
+      { effectiveDate: STEP_UP_DATE, pricePerShare: d(150), pricePerShareBase: null }
+    );
+
+    expect(result.realizedGains[0].realizedPnL.toString()).toBe("100");
+  });
+
+  it("steps up before a split effective the same day", () => {
+    resetSequence();
+    const result = computeAverageCostLedger(
+      "sec-1",
+      [
+        tx({ type: "BUY", date: "2024-01-01", quantity: 10, price: 100 }),
+        tx({ type: "SELL", date: "2026-06-01", quantity: 20, price: 100 }),
+      ],
+      [{ securityId: "sec-1", effectiveDate: STEP_UP_DATE, ratio: d(2) }],
+      undefined,
+      { effectiveDate: STEP_UP_DATE, pricePerShare: d(150), pricePerShareBase: null }
+    );
+
+    // The 150 reference price is quoted pre-split, so the re-based total is
+    // 10 * 150 = 1 500 and the split then halves it per share, not 20 * 150.
+    expect(result.realizedGains[0].costBasisRemoved.toString()).toBe("1500");
+    expect(result.realizedGains[0].realizedPnL.toString()).toBe("500");
+  });
+
+  it("converts the reference price with its own rate, and poisons base amounts without one", () => {
+    resetSequence();
+    const transactions = [
+      tx({ type: "BUY", date: "2024-01-01", quantity: 10, price: 100, currency: "USD" }),
+      tx({ type: "SELL", date: "2026-06-01", quantity: 10, price: 170, currency: "USD" }),
+    ];
+    const fxContext = {
+      baseCurrency: "EUR",
+      fxRates: [
+        { baseCurrency: "USD", quoteCurrency: "EUR", date: new Date("2024-01-01"), rate: d("0.9") },
+        { baseCurrency: "USD", quoteCurrency: "EUR", date: new Date("2026-06-01"), rate: d("0.8") },
+      ],
+    };
+
+    const withRate = computeAverageCostLedger("sec-1", transactions, [], fxContext, {
+      effectiveDate: STEP_UP_DATE,
+      pricePerShare: d(150),
+      pricePerShareBase: d("127.5"),
+    });
+    // Proceeds 1 700 USD at 0.8 = 1 360 EUR, basis 10 * 127.5 = 1 275 EUR.
+    expect(withRate.realizedGains[0].realizedPnLBase?.toString()).toBe("85");
+
+    const withoutRate = computeAverageCostLedger("sec-1", transactions, [], fxContext, {
+      effectiveDate: STEP_UP_DATE,
+      pricePerShare: d(150),
+      pricePerShareBase: null,
+    });
+    expect(withoutRate.realizedGains[0].realizedPnLBase).toBeNull();
+    expect(withoutRate.costBasisBase).toBeNull();
+  });
+});

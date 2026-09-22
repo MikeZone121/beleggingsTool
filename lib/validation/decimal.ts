@@ -47,6 +47,18 @@ export const positiveDecimalString = decimalString.refine((val) => {
   }
 }, "Must be greater than 0");
 
+/** A finite decimal that must be zero or greater, comma-or-dot — for
+ * amounts where zero is a meaningful setting rather than missing input
+ * (e.g. a capital-gains exemption someone deliberately sets to 0). Same
+ * independent re-parse as `positiveDecimalString`, for the same reason. */
+export const nonNegativeDecimalString = decimalString.refine((val) => {
+  try {
+    return new Decimal(val).greaterThanOrEqualTo(0);
+  } catch {
+    return false;
+  }
+}, "Must be 0 or greater");
+
 /** A fraction between 0 and 1 inclusive (0.6 = 60%) — for weights/targets
  * stored the same way `AllocationBucket.weight` already is. */
 export const fractionString = decimalString.refine((val) => {

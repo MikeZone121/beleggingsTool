@@ -46,6 +46,15 @@ import { findFxRate } from "./currency";
  * rate can't be resolved, `costBasisBase` (and every subsequent `*Base`
  * field) becomes `null` for the rest of the ledger — a missing rate must
  * never be silently treated as 0 or 1.
+ *
+ * Fiscal step-up: pass `stepUp` to re-base the position held on a given
+ * date to a fixed price per share, leaving quantity untouched. This is not
+ * an accounting event — it exists for the Belgian capital-gains regime,
+ * where a pre-2026 position's *taxable* acquisition value is its
+ * 31/12/2025 market value rather than what was actually paid (see
+ * lib/finance/capitalGainsTax.ts). Run the ledger twice — once without and
+ * once with `stepUp` — to get the accounting gain and the taxable gain for
+ * the same sale.
  */
 
 export interface FxContext {
@@ -53,13 +62,40 @@ export interface FxContext {
   fxRates: FxRate[];
 }
 
+/** Re-bases whatever is held on `effectiveDate` to `pricePerShare`, before
+ * any trade or split booked that day. `pricePerShareBase` is the same price
+ * in the portfolio base currency (null when it can't be resolved, which
+ * poisons `costBasisBase` from that point on, exactly like a missing
+ * transaction rate). */
+export interface FiscalStepUp {
+  effectiveDate: Date;
+  pricePerShare: Decimal;
+  pricePerShareBase: Decimal | null;
+}
+
 type LedgerEvent =
   | { kind: "BUY" | "SELL"; date: Date; order: number; tx: DomainTransaction }
-  | { kind: "SPLIT"; date: Date; order: number; ratio: Decimal };
+  | { kind: "SPLIT"; date: Date; order: number; ratio: Decimal }
+  | {
+      kind: "STEP_UP";
+      date: Date;
+      order: number;
+      pricePerShare: Decimal;
+      pricePerShareBase: Decimal | null;
+    };
+
+/** A trade's `order` is its `sequence` (a positive epoch-ms timestamp), so
+ * both sentinels below sort before any same-day trade. They are ordered
+ * relative to each other too: a step-up price is quoted in the shares as
+ * they traded *before* a split on the same date, so it must be applied
+ * first or the re-based cost would be off by the split ratio. */
+const STEP_UP_ORDER = Number.NEGATIVE_INFINITY;
+const SPLIT_ORDER = Number.MIN_SAFE_INTEGER;
 
 function buildLedgerEvents(
   transactions: DomainTransaction[],
-  splits: SplitEvent[]
+  splits: SplitEvent[],
+  stepUp?: FiscalStepUp
 ): LedgerEvent[] {
   const events: LedgerEvent[] = [];
 
@@ -69,12 +105,20 @@ function buildLedgerEvents(
     }
   }
   for (const split of splits) {
-    // Splits sort before same-day trades: use a very small order value.
     events.push({
       kind: "SPLIT",
       date: split.effectiveDate,
-      order: Number.NEGATIVE_INFINITY,
+      order: SPLIT_ORDER,
       ratio: split.ratio,
+    });
+  }
+  if (stepUp) {
+    events.push({
+      kind: "STEP_UP",
+      date: stepUp.effectiveDate,
+      order: STEP_UP_ORDER,
+      pricePerShare: stepUp.pricePerShare,
+      pricePerShareBase: stepUp.pricePerShareBase,
     });
   }
 
@@ -97,19 +141,36 @@ export function computeAverageCostLedger(
   securityId: string,
   transactions: DomainTransaction[],
   splits: SplitEvent[] = [],
-  fxContext?: FxContext
+  fxContext?: FxContext,
+  stepUp?: FiscalStepUp
 ): CostBasisLedgerResult {
   let quantity = ZERO;
   let costBasis = ZERO;
   let costBasisBase: Decimal | null = fxContext ? ZERO : null;
   const realizedGains: RealizedGain[] = [];
 
-  const events = buildLedgerEvents(transactions, splits);
+  const events = buildLedgerEvents(transactions, splits, stepUp);
 
   for (const event of events) {
     if (event.kind === "SPLIT") {
       quantity = quantity.times(event.ratio);
       // costBasis (native and base) is unchanged by a split.
+      continue;
+    }
+
+    if (event.kind === "STEP_UP") {
+      // Nothing held on that date means nothing to re-base — and in
+      // particular not a cost basis of zero, which would make the whole
+      // proceeds of a later sale taxable.
+      if (quantity.isPositive()) {
+        costBasis = quantity.times(event.pricePerShare);
+        if (fxContext) {
+          costBasisBase =
+            event.pricePerShareBase !== null
+              ? quantity.times(event.pricePerShareBase)
+              : null;
+        }
+      }
       continue;
     }
 
