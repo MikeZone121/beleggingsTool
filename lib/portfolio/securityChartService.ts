@@ -56,7 +56,7 @@ export async function getSecurityChartData(securityId: string): Promise<Security
 
   const [priceRows, previousCloses] = await Promise.all([
     listPricesForSecurities([securityId]),
-    getPreviousClosePrices([securityId], new Date()),
+    getPreviousClosePrices([securityId]),
   ]);
 
   const currentPrice = toCurrentPrice(security);

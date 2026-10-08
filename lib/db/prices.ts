@@ -29,24 +29,39 @@ export async function getEarliestPriceDate(securityId: string): Promise<Date | n
   return row?.date ?? null;
 }
 
-/** Each security's most recent close strictly before `asOf`'s calendar
- * date — i.e. "yesterday's close" for day-over-day change, regardless of
- * which market (EU/US/CA) the security trades on, since each `Price.date`
- * already reflects that market's own trading calendar. */
-export async function getPreviousClosePrices(
-  securityIds: string[],
-  asOf: Date
-): Promise<Map<string, string>> {
+/** Each security's close on the trading day *before* its own most recent
+ * cached one — i.e. "the previous close", for day-over-day change.
+ *
+ * Deliberately not "strictly before today's wall-clock date": `Security.
+ * currentPrice` is only ever as fresh as the last manual/scheduled refresh,
+ * so outside a market's trading hours (pre-market, weekends, a refresh
+ * that simply hasn't happened yet today) the live quote and this table's
+ * latest cached close are frequently the *same* session's price. Anchoring
+ * to "today" then compares that price to itself and reports a day change
+ * of exactly 0% — not "unchanged", but "no newer session to compare
+ * against yet". Anchoring to each security's own latest cached date
+ * instead always compares two distinct sessions, so the change shown is
+ * the last real move, whatever today's wall-clock date happens to be.
+ */
+export async function getPreviousClosePrices(securityIds: string[]): Promise<Map<string, string>> {
   if (securityIds.length === 0) return new Map();
-  const today = new Date(Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate()));
   const rows = await prisma.price.findMany({
-    where: { securityId: { in: securityIds }, date: { lt: today } },
+    where: { securityId: { in: securityIds } },
     orderBy: { date: "desc" },
     select: { securityId: true, close: true },
   });
   const result = new Map<string, string>();
+  const latestSeen = new Set<string>();
   for (const row of rows) {
-    if (!result.has(row.securityId)) result.set(row.securityId, row.close.toString());
+    if (result.has(row.securityId)) continue;
+    // The first row seen per security is its most recent cached close —
+    // the one `currentPrice` is being compared against, not the
+    // "previous" one — so it's skipped rather than returned.
+    if (!latestSeen.has(row.securityId)) {
+      latestSeen.add(row.securityId);
+      continue;
+    }
+    result.set(row.securityId, row.close.toString());
   }
   return result;
 }

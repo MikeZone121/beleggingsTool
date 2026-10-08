@@ -36,10 +36,7 @@ export interface TodaySummary {
  */
 export async function getTodaySummary(userId: string, portfolioId: string): Promise<TodaySummary> {
   const snapshot = await getPortfolioSnapshot(userId, portfolioId);
-  const previousCloses = await getPreviousClosePrices(
-    snapshot.holdings.map((h) => h.securityId),
-    new Date()
-  );
+  const previousCloses = await getPreviousClosePrices(snapshot.holdings.map((h) => h.securityId));
   const fxRateRows = await listExchangeRates();
   const fxRates = fxRateRows.map(toFxRate);
   const today = new Date();

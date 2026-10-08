@@ -35,10 +35,7 @@ export async function getWatchlistSnapshot(userId: string): Promise<WatchlistRow
   const items = await listWatchlist(userId);
   if (items.length === 0) return [];
 
-  const previousCloses = await getPreviousClosePrices(
-    items.map((item) => item.securityId),
-    new Date()
-  );
+  const previousCloses = await getPreviousClosePrices(items.map((item) => item.securityId));
 
   return items.map((item) => {
     const currentPrice = toCurrentPrice(item.security);

@@ -1,6 +1,7 @@
 import "./loadEnv";
 import { hash } from "bcryptjs";
 import { prisma } from "../lib/db/client";
+import { isAdminEmail } from "../lib/auth/adminPolicy";
 
 /**
  * Seeds the single personal user (from env), a default EUR portfolio, one
@@ -26,10 +27,11 @@ async function main() {
   }
 
   const passwordHash = await hash(password, 12);
+  const role = isAdminEmail(email) ? "ADMIN" : "USER";
   const user = await prisma.user.upsert({
     where: { email },
-    create: { email, name, passwordHash },
-    update: { name, passwordHash },
+    create: { email, name, passwordHash, role },
+    update: { name, passwordHash, role },
   });
 
   const portfolio = await prisma.portfolio.upsert({

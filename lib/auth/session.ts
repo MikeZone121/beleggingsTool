@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "./config";
+import { getUserById } from "@/lib/db/users";
 
 export async function getCurrentUser() {
   const session = await auth();
@@ -13,6 +14,19 @@ export async function requireUser() {
     redirect("/login");
   }
   return user;
+}
+
+/** Server Component page guard: redirects non-admins to /dashboard. Reads
+ * the role fresh from the DB rather than trusting the JWT-cached one —
+ * with `session: { strategy: "jwt" }`, a demoted admin would otherwise
+ * keep admin access until their token is reissued. */
+export async function requireAdmin() {
+  const user = await requireUser();
+  const dbUser = await getUserById(user.id!);
+  if (dbUser?.role !== "ADMIN") {
+    redirect("/dashboard");
+  }
+  return dbUser;
 }
 
 export class UnauthorizedError extends Error {

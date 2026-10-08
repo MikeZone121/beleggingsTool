@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TurnstileWidget } from "@/components/auth/turnstile-widget";
 import { signup } from "./actions";
 
 interface SignupPageProps {
@@ -17,9 +18,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-xl">Create your account</CardTitle>
-          <CardDescription>
-            Signup is invite-only — your email must be pre-authorized.
-          </CardDescription>
+          <CardDescription>Track your portfolio, dividends, and taxes in one place.</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={signup} className="flex flex-col gap-4">
@@ -52,6 +51,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
                 className="uppercase"
               />
             </Field>
+            <TurnstileWidget />
             {error && <FieldError>{error}</FieldError>}
             <Button type="submit" className="mt-2 w-full">
               Create account

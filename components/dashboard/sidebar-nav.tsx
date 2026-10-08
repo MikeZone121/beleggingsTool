@@ -12,8 +12,10 @@ import {
   Settings,
   Eye,
   Receipt,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Role } from "@/generated/prisma/client";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -27,12 +29,21 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+const ADMIN_NAV_ITEM = { href: "/admin", label: "Admin", icon: ShieldCheck } as const;
+
+export function SidebarNav({
+  onNavigate,
+  role,
+}: {
+  onNavigate?: () => void;
+  role?: Role;
+}) {
   const pathname = usePathname();
+  const items = role === "ADMIN" ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <nav className="flex flex-col gap-1 p-3">
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
         return (

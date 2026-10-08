@@ -37,6 +37,11 @@ enum DividendStatus {
   PAID
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 enum CorporateActionType {
   SPLIT
   REVERSE_SPLIT
@@ -59,6 +64,7 @@ model User {
   /// "16 sep 2026", a US one "$127,438.20" and "Sep 16, 2026". Display
   /// only: it never affects stored values or any Decimal math.
   locale         String          @default("en-US")
+  role           Role            @default(USER)
   portfolios     Portfolio[]
   watchlistItems WatchlistItem[]
   createdAt      DateTime        @default(now())

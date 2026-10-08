@@ -36,10 +36,16 @@ export async function createUserWithDefaultPortfolio(data: {
   name: string;
   passwordHash: string;
   baseCurrency: string;
+  role: "USER" | "ADMIN";
 }) {
   return prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { email: data.email, name: data.name, passwordHash: data.passwordHash },
+      data: {
+        email: data.email,
+        name: data.name,
+        passwordHash: data.passwordHash,
+        role: data.role,
+      },
     });
     const portfolio = await tx.portfolio.create({
       data: {

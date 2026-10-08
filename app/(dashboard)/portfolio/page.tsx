@@ -46,7 +46,7 @@ export default async function PortfolioPage() {
     );
 
   const [previousCloses, dividendSnapshot] = await Promise.all([
-    getPreviousClosePrices(holdings.map((h) => h.securityId), new Date()),
+    getPreviousClosePrices(holdings.map((h) => h.securityId)),
     getDividendSnapshot(user.id, portfolio.id),
   ]);
 

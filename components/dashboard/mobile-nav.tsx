@@ -11,10 +11,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
+import type { Role } from "@/generated/prisma/client";
 
 /** The sidebar is hidden below `md` (see DashboardLayout) — this is its only
  * way to navigate on a phone/small screen. */
-export function MobileNav() {
+export function MobileNav({ role }: { role?: Role }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -27,7 +28,7 @@ export function MobileNav() {
         <SheetHeader className="border-b">
           <SheetTitle>Canopy</SheetTitle>
         </SheetHeader>
-        <SidebarNav onNavigate={() => setOpen(false)} />
+        <SidebarNav onNavigate={() => setOpen(false)} role={role} />
       </SheetContent>
     </Sheet>
   );

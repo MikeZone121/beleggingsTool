@@ -41,9 +41,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Invited to sign up?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-primary underline-offset-4 hover:underline">
-              Create an account
+              Create one
             </Link>
           </p>
         </CardContent>

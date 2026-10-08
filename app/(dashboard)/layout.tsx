@@ -28,12 +28,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <div className="flex h-14 items-center border-b px-4 text-sm font-semibold">
               Canopy
             </div>
-            <SidebarNav />
+            <SidebarNav role={dbUser?.role} />
           </aside>
           <div className="flex min-w-0 flex-1 flex-col">
             <header className="flex h-14 items-center justify-between border-b px-4">
               <div className="flex min-w-0 items-center gap-2">
-                <MobileNav />
+                <MobileNav role={dbUser?.role} />
                 <span className="truncate text-sm text-muted-foreground">{user.email}</span>
               </div>
               <div className="flex items-center gap-1">
