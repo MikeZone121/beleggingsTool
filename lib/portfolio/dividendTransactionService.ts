@@ -6,6 +6,7 @@ import { getPortfolioById } from "@/lib/db/portfolios";
 import { listDividendsForSecurities } from "@/lib/db/dividends";
 import { toDomainTransaction, toSecurityMeta } from "@/lib/db/mappers";
 import { deriveHoldings } from "@/lib/finance/holdings";
+import { loadSplitsBySecurity } from "./splitService";
 import { BELGIAN_DIVIDEND_WITHHOLDING_TAX_RATE } from "@/lib/finance/dividendCalendar";
 import { createPortfolioTransaction } from "./transactionService";
 import { transactionInputSchema } from "@/lib/validation/transaction";
@@ -92,6 +93,11 @@ export async function createDividendTransactionsFromHistory(
 
   const dividendRows = await listDividendsForSecurities(securityIds);
 
+  // Without the splits, "how many shares did I hold on the ex-date?" is
+  // answered with pre-split quantities — which is exactly the number the
+  // dividend amount gets multiplied by below.
+  const { splitsBySecurity } = await loadSplitsBySecurity(securityIds);
+
   // The portfolio's configured withholding rate (Settings), falling back to
   // the Belgian default for a portfolio created before that setting existed.
   const withholdingRate = portfolio.dividendTaxRate
@@ -117,7 +123,8 @@ export async function createDividendTransactionsFromHistory(
       securities,
       new Map(),
       [],
-      portfolio.baseCurrency
+      portfolio.baseCurrency,
+      splitsBySecurity
     );
     const quantity = holdings.find((h) => h.securityId === dividend.securityId)?.quantity ?? new Decimal(0);
     if (!quantity.greaterThan(0)) {

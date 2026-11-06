@@ -28,3 +28,20 @@ export const securityInputSchema = z.object({
 });
 
 export type SecurityInput = z.infer<typeof securityInputSchema>;
+
+/**
+ * PATCH counterpart: every field optional, so a caller can send just the
+ * one it changed. `.partial()` over the create schema deliberately, rather
+ * than a hand-written second schema — a field added to `securityInput`
+ * then can't be silently un-editable.
+ *
+ * `currentPrice` keeps its `positiveDecimalString` rule, which is why the
+ * price-only PATCH the Portfolio table's pencil sends (`{ currentPrice }`)
+ * still validates exactly as before.
+ */
+export const securityUpdateSchema = securityInputSchema.partial().refine(
+  (data) => Object.keys(data).length > 0,
+  "At least one field must be provided"
+);
+
+export type SecurityUpdateInput = z.infer<typeof securityUpdateSchema>;

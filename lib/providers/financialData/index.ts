@@ -9,6 +9,8 @@ export type {
   ProviderPricePoint,
   ProviderDividendEvent,
   ProviderSecurityMatch,
+  ProviderSplitEvent,
+  SplitCapableProvider,
   NewsHeadline,
   NewsCapableProvider,
 } from "./types";

@@ -7,6 +7,7 @@ import { listAccounts } from "@/lib/db/accounts";
 import { listSecurities } from "@/lib/db/securities";
 import { listPortfolioTransactions } from "@/lib/portfolio/transactionService";
 import { calculateRealizedGains } from "@/lib/finance/realizedPnL";
+import { loadSplitsBySecurity } from "@/lib/portfolio/splitService";
 import { toDomainTransaction } from "@/lib/db/mappers";
 import { EmptyState } from "@/components/empty-state";
 import { AddTransactionDialog } from "@/components/transactions/add-transaction-dialog";
@@ -27,19 +28,27 @@ export default async function TransactionsPage() {
     listPortfolioTransactions(user.id, portfolio.id),
   ]);
 
+  // Realized gain per SELL has to be replayed over the same split events
+  // the Portfolio page uses, or a post-split sale shows a gain computed
+  // against a pre-split cost per share.
+  const { splitsBySecurity } = await loadSplitsBySecurity(
+    securities.map((s) => s.id)
+  );
+
   const accountOptions = accounts.map((a) => ({ id: a.id, name: a.name }));
   const securityOptions = securities.map((s) => ({
     id: s.id,
     ticker: s.ticker,
     name: s.name,
     currency: s.currency,
+    assetType: s.assetType,
   }));
 
   // Keyed by transaction id — calculateRealizedGains needs every BUY/SELL
   // for a security (not just the SELLs) to reconstruct the average-cost
   // ledger, so it runs over the full list rather than per-row.
   const realizedGainByTxId = new Map(
-    calculateRealizedGains(transactions.map(toDomainTransaction)).map((g) => [
+    calculateRealizedGains(transactions.map(toDomainTransaction), splitsBySecurity).map((g) => [
       g.transactionId,
       g.realizedPnL,
     ])
@@ -58,6 +67,7 @@ export default async function TransactionsPage() {
       securityTicker: tx.security?.ticker ?? null,
       securityName: tx.security?.name ?? null,
       securityCurrency: tx.security?.currency ?? null,
+      securityAssetType: tx.security?.assetType ?? null,
       quantity: tx.quantity?.toString() ?? null,
       price: tx.price?.toString() ?? null,
       // `amount` has no column of its own (see transactionAmounts.ts) — for

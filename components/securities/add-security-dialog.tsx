@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { FieldDescription, FieldError } from "@/components/ui/field";
 import {
   Dialog,
   DialogContent,
@@ -15,8 +15,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ASSET_TYPES } from "@/lib/validation/security";
 import { mapProviderAssetType } from "@/lib/providers/financialData/assetTypeMapping";
+import {
+  SecurityFormFields,
+  toSecurityPayload,
+  type SecurityFormValues,
+} from "./security-form-fields";
 
 interface SearchResult {
   ticker: string;
@@ -27,17 +31,7 @@ interface SearchResult {
   assetType: string | null;
 }
 
-interface FormValues {
-  ticker: string;
-  name: string;
-  assetType: (typeof ASSET_TYPES)[number];
-  exchange: string;
-  currency: string;
-  isin: string;
-  country: string;
-  sector: string;
-  currentPrice: string;
-}
+type FormValues = SecurityFormValues;
 
 const defaultValues: FormValues = {
   ticker: "",
@@ -105,21 +99,10 @@ export function AddSecurityDialog() {
     setSubmitting(true);
     setServerError(null);
     try {
-      const payload = {
-        ticker: values.ticker,
-        name: values.name,
-        assetType: values.assetType,
-        exchange: values.exchange || null,
-        currency: values.currency,
-        isin: values.isin || null,
-        country: values.country || null,
-        sector: values.sector || null,
-        currentPrice: values.currentPrice || null,
-      };
       const response = await fetch("/api/securities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(toSecurityPayload(values)),
       });
       const result = await response.json();
 
@@ -190,60 +173,7 @@ export function AddSecurityDialog() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Field>
-              <FieldLabel htmlFor="ticker">Ticker</FieldLabel>
-              <Input id="ticker" {...register("ticker", { required: "Required" })} />
-              {errors.ticker && <FieldError>{errors.ticker.message}</FieldError>}
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="assetType">Asset type</FieldLabel>
-              <select
-                id="assetType"
-                className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                {...register("assetType")}
-              >
-                {ASSET_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <Field>
-            <FieldLabel htmlFor="name">Name</FieldLabel>
-            <Input id="name" {...register("name", { required: "Required" })} />
-            {errors.name && <FieldError>{errors.name.message}</FieldError>}
-          </Field>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field>
-              <FieldLabel htmlFor="exchange">Exchange</FieldLabel>
-              <Input id="exchange" placeholder="NASDAQ, AMS…" {...register("exchange")} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="currency">Currency</FieldLabel>
-              <Input id="currency" maxLength={3} {...register("currency", { required: true })} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="isin">ISIN (optional)</FieldLabel>
-              <Input id="isin" maxLength={12} {...register("isin")} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="country">Country (optional)</FieldLabel>
-              <Input id="country" maxLength={2} placeholder="US, NL…" {...register("country")} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="sector">Sector (optional)</FieldLabel>
-              <Input id="sector" {...register("sector")} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="currentPrice">Current price (optional)</FieldLabel>
-              <Input id="currentPrice" inputMode="decimal" {...register("currentPrice")} />
-            </Field>
-          </div>
+          <SecurityFormFields register={register} errors={errors} idPrefix="add-security" />
 
           {serverError && <FieldError>{serverError}</FieldError>}
 

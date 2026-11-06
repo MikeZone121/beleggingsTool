@@ -6,6 +6,7 @@ import { listPricesForSecurities } from "@/lib/db/prices";
 import { getPortfolioById } from "@/lib/db/portfolios";
 import { toDomainTransaction, toSecurityMeta, toFxRate } from "@/lib/db/mappers";
 import { deriveHoldings } from "@/lib/finance/holdings";
+import { loadSplitsBySecurity } from "@/lib/portfolio/splitService";
 import { calculateCashBalance } from "@/lib/finance/cashBalance";
 import { calculatePortfolioValue } from "@/lib/finance/portfolioValue";
 import type { CurrentPrice } from "@/types/domain";
@@ -120,6 +121,12 @@ export async function getPortfolioValueHistory(
   const fxRateRows = await listExchangeRates();
   const fxRates = fxRateRows.map(toFxRate);
 
+  // Loaded once for the whole reconstruction rather than per sample date:
+  // `computeAverageCostLedger` only applies the splits dated on or before
+  // the transactions it replays, so the full list is correct at every
+  // sample, and each point would otherwise re-query the same rows.
+  const { splitsBySecurity } = await loadSplitsBySecurity(securityIds);
+
   // Anchoring at the first transaction of any kind (rather than the first
   // DEPOSIT) breaks down whenever a security was bought before any funding
   // was ever recorded: cash sits deeply negative for however long that
@@ -159,7 +166,8 @@ export async function getPortfolioValueHistory(
       securities,
       currentPrices,
       fxRates,
-      portfolio.baseCurrency
+      portfolio.baseCurrency,
+      splitsBySecurity
     );
     const cash = calculateCashBalance(transactionsToDate, {
       baseCurrency: portfolio.baseCurrency,

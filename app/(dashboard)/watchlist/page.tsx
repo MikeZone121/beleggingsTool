@@ -23,6 +23,7 @@ export default async function WatchlistPage() {
     ticker: s.ticker,
     name: s.name,
     currency: s.currency,
+    assetType: s.assetType,
   }));
   const watchedSecurityIds = new Set(items.map((i) => i.securityId));
 

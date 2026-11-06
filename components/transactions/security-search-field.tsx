@@ -5,12 +5,20 @@ import { toast } from "sonner";
 import { Search, Check, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { mapProviderAssetType } from "@/lib/providers/financialData/assetTypeMapping";
+import type { AssetType } from "@/generated/prisma/client";
 
+/** The one shape every transaction component uses for "a security you can
+ * pick" — the dialogs, the form and the table all take this rather than
+ * each repeating a structural type, so a field added here (as `assetType`
+ * was, for the TOB estimate) reaches all of them at once. */
 export interface SelectedSecurity {
   id: string;
   ticker: string;
   name: string;
   currency: string;
+  /** Drives the pre-selected TOB category in the transaction form (see
+   * `defaultTobCategory`). */
+  assetType: AssetType;
 }
 
 type ExistingSecurity = SelectedSecurity;
@@ -131,6 +139,7 @@ export function SecuritySearchField({
         ticker: created.data.ticker,
         name: created.data.name,
         currency: created.data.currency,
+        assetType: created.data.assetType,
       });
       setQuery("");
       setOpen(false);

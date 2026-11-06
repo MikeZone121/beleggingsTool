@@ -120,22 +120,35 @@ export function HoldingsTable({ holdings, cash, baseCurrency }: HoldingsTablePro
               </div>
             </div>
             <div className="flex items-center justify-between gap-2 text-sm">
-              <div className="min-w-0 text-muted-foreground">
-                <Quantity value={holding.quantity} />
-                {" @ "}
-                {holding.currentPrice ? (
-                  <span className={dayChangeToneClass(holding.dayChangePercent)}>
-                    <Money value={holding.currentPrice} currency={holding.currency} />
-                  </span>
-                ) : (
-                  <Badge variant="secondary">no price</Badge>
-                )}
-                {holding.dayChangePercent && (
-                  <span className={dayChangeToneClass(holding.dayChangePercent)}>
-                    {" "}
-                    (<Percent value={holding.dayChangePercent} signDisplay="always" />)
-                  </span>
-                )}
+              <div className="flex min-w-0 items-center text-muted-foreground">
+                <span className="truncate">
+                  <Quantity value={holding.quantity} />
+                  {" @ "}
+                  {holding.currentPrice ? (
+                    <span className={dayChangeToneClass(holding.dayChangePercent)}>
+                      <Money value={holding.currentPrice} currency={holding.currency} />
+                    </span>
+                  ) : (
+                    <Badge variant="secondary">no price</Badge>
+                  )}
+                  {holding.dayChangePercent && (
+                    <span className={dayChangeToneClass(holding.dayChangePercent)}>
+                      {" "}
+                      (<Percent value={holding.dayChangePercent} signDisplay="always" />)
+                    </span>
+                  )}
+                </span>
+                {/* Manual price entry is the only way to price a security
+                 * the provider can't quote, so the phone layout needs the
+                 * same pencil the desktop table has — with a finger-sized
+                 * tap target rather than the table's compact icon. */}
+                <EditPricePopover
+                  securityId={holding.securityId}
+                  ticker={holding.ticker}
+                  currency={holding.currency}
+                  currentPrice={holding.currentPrice}
+                  className="size-9 shrink-0"
+                />
               </div>
               <div className={`shrink-0 text-right tabular-nums font-medium ${toneClass[holding.tone]}`}>
                 <Money value={holding.unrealizedPnLBase} currency={baseCurrency} signDisplay="always" />

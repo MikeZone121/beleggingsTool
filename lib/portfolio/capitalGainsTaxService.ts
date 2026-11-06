@@ -5,6 +5,7 @@ import { getClosePricesOnOrBefore } from "@/lib/db/prices";
 import { listExchangeRates } from "@/lib/db/exchangeRates";
 import { toDomainTransaction, toFxRate } from "@/lib/db/mappers";
 import { calculateRealizedGains } from "@/lib/finance/realizedPnL";
+import { loadSplitsBySecurity } from "./splitService";
 import type { FiscalStepUp } from "@/lib/finance/costBasis";
 import { findFxRate } from "@/lib/finance/currency";
 import {
@@ -75,9 +76,10 @@ export async function getCapitalGainsTaxSnapshot(
       .map((row) => row.securityId!)
   );
 
-  const [fxRateRows, referenceCloses] = await Promise.all([
+  const [fxRateRows, referenceCloses, splits] = await Promise.all([
     listExchangeRates(),
     getClosePricesOnOrBefore(Array.from(heldBefore2026), REFERENCE_DATE),
+    loadSplitsBySecurity(Array.from(securityById.keys())),
   ]);
   const fxRates = fxRateRows.map(toFxRate);
   const fxContext = { baseCurrency, fxRates };
@@ -104,10 +106,13 @@ export async function getCapitalGainsTaxSnapshot(
     });
   }
 
-  const accountingGains = calculateRealizedGains(transactions, new Map(), fxContext);
+  // Both ledgers get the same splits: the taxable gain differs from the
+  // accounting one only in the acquisition value (the step-up), never in
+  // how many shares a split turned into how many.
+  const accountingGains = calculateRealizedGains(transactions, splits.splitsBySecurity, fxContext);
   const fiscalGains = calculateRealizedGains(
     transactions,
-    new Map(),
+    splits.splitsBySecurity,
     fxContext,
     stepUpBySecurity
   );
