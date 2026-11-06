@@ -13,6 +13,7 @@ import { calculatePortfolioValue, calculateTotalCostBasis, calculateTotalUnreali
 import { calculateRealizedGains, totalRealizedPnLBase } from "@/lib/finance/realizedPnL";
 import { calculateAllocation } from "@/lib/finance/allocation";
 import { calculateCashBalance } from "@/lib/finance/cashBalance";
+import { loadSplitsBySecurity } from "./splitService";
 import type { AllocationDimension, CurrentPrice, Holding } from "@/types/domain";
 
 export interface PortfolioSnapshot {
@@ -63,16 +64,23 @@ export async function getPortfolioSnapshot(
   const fxRateRows = await listExchangeRates();
   const fxRates = fxRateRows.map(toFxRate);
 
+  // Splits have to reach both the holdings ledger and the realized-gain
+  // ledger: the same replay produces quantity/average cost and the cost
+  // basis removed by each sale, so feeding them to one and not the other
+  // would make the two disagree.
+  const { splitsBySecurity } = await loadSplitsBySecurity(securityIds);
+
   const holdings = deriveHoldings(
     transactions,
     securities,
     currentPrices,
     fxRates,
-    portfolio.baseCurrency
+    portfolio.baseCurrency,
+    splitsBySecurity
   );
 
   const fxContext = { baseCurrency: portfolio.baseCurrency, fxRates };
-  const realizedGains = calculateRealizedGains(transactions, new Map(), fxContext);
+  const realizedGains = calculateRealizedGains(transactions, splitsBySecurity, fxContext);
   const realizedPnLBase = totalRealizedPnLBase(realizedGains);
   const cashBalance = calculateCashBalance(transactions, fxContext);
 

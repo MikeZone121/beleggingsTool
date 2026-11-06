@@ -35,6 +35,7 @@ import { useLocale } from "@/components/locale-provider";
 import { Money, Quantity } from "@/components/ui/money";
 import { CASH_IMPACT_SIGN } from "@/lib/finance/cashBalance";
 import { EditTransactionDialog, type EditableTransaction } from "./edit-transaction-dialog";
+import type { SelectedSecurity } from "./security-search-field";
 import { TRANSACTION_TYPES } from "@/lib/validation/transaction";
 
 type TxType = (typeof TRANSACTION_TYPES)[number];
@@ -104,6 +105,7 @@ export interface TransactionRow {
   securityTicker: string | null;
   securityName: string | null;
   securityCurrency: string | null;
+  securityAssetType: SelectedSecurity["assetType"] | null;
   quantity: string | null;
   price: string | null;
   amount: string | null;
@@ -122,7 +124,7 @@ export interface TransactionRow {
 interface TransactionsTableProps {
   transactions: TransactionRow[];
   accounts: { id: string; name: string }[];
-  securities: { id: string; ticker: string; name: string; currency: string }[];
+  securities: SelectedSecurity[];
 }
 
 export function TransactionsTable({ transactions, accounts, securities }: TransactionsTableProps) {
@@ -160,12 +162,13 @@ export function TransactionsTable({ transactions, accounts, securities }: Transa
       currency: tx.currency,
       notes: tx.notes,
       security:
-        tx.securityId && tx.securityTicker && tx.securityCurrency
+        tx.securityId && tx.securityTicker && tx.securityCurrency && tx.securityAssetType
           ? {
               id: tx.securityId,
               ticker: tx.securityTicker,
               name: tx.securityName ?? tx.securityTicker,
               currency: tx.securityCurrency,
+              assetType: tx.securityAssetType,
             }
           : null,
     });

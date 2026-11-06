@@ -3,8 +3,9 @@ import type {
   Transaction as PrismaTransaction,
   Security as PrismaSecurity,
   ExchangeRate as PrismaExchangeRate,
+  CorporateAction as PrismaCorporateAction,
 } from "@/generated/prisma/client";
-import type { DomainTransaction, CurrentPrice, FxRate } from "@/types/domain";
+import type { DomainTransaction, CurrentPrice, FxRate, SplitEvent } from "@/types/domain";
 import type { SecurityMeta } from "@/lib/finance/holdings";
 
 /**
@@ -64,6 +65,27 @@ export function toFxRate(row: PrismaExchangeRate): FxRate {
     date: row.date,
     rate: toAppDecimal(row.rate)!,
   };
+}
+
+/**
+ * Maps a split `CorporateAction` row onto the `SplitEvent` the cost-basis
+ * ledger replays. Returns null for a row whose `details.ratio` is missing
+ * or unusable — a split with an unparseable ratio must be ignored, never
+ * defaulted to 1 (silently no-op) or 0 (silently wipes the position); the
+ * caller reports it instead (see `loadSplitsBySecurity`).
+ */
+export function toSplitEvent(row: PrismaCorporateAction): SplitEvent | null {
+  const details = row.details as { ratio?: unknown } | null;
+  const raw = details?.ratio;
+  if (typeof raw !== "string" && typeof raw !== "number") return null;
+
+  try {
+    const ratio = new Decimal(raw);
+    if (!ratio.isFinite() || ratio.lessThanOrEqualTo(0)) return null;
+    return { securityId: row.securityId, effectiveDate: row.effectiveDate, ratio };
+  } catch {
+    return null;
+  }
 }
 
 export function toCurrentPrice(row: PrismaSecurity): CurrentPrice | null {

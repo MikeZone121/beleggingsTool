@@ -2,13 +2,22 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import Decimal from "decimal.js";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Money } from "@/components/ui/money";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { TRANSACTION_TYPES, transactionInputSchema } from "@/lib/validation/transaction";
+import {
+  defaultTobCategory,
+  estimateBelgianTransactionTax,
+  TOB_CATEGORIES,
+  TOB_RATES,
+  type TobCategory,
+} from "@/lib/finance/belgianTransactionTax";
 import { SecuritySearchField, type SelectedSecurity } from "./security-search-field";
 
 const TYPES_WITH_SECURITY = new Set(["BUY", "SELL", "DIVIDEND", "SPLIT"]);
@@ -19,16 +28,9 @@ interface AccountOption {
   name: string;
 }
 
-interface SecurityOption {
-  id: string;
-  ticker: string;
-  name: string;
-  currency: string;
-}
-
 interface TransactionFormProps {
   accounts: AccountOption[];
-  securities: SecurityOption[];
+  securities: SelectedSecurity[];
   onSuccess?: () => void;
   /** Present only when editing an existing transaction — switches the
    * submit target from POST /api/transactions to PATCH .../[id] and
@@ -66,6 +68,21 @@ const defaultValues: FormValues = {
   notes: "",
 };
 
+/** The taxable base is quantity x price (fees are not part of it). Returns
+ * null whenever that can't be computed from what's typed so far, so the
+ * form shows nothing rather than a misleading 0. */
+function estimateTob(quantity: string | null, price: string | null, category: TobCategory) {
+  if (!quantity || !price) return null;
+  try {
+    const gross = new Decimal(quantity.replace(",", ".")).times(price.replace(",", "."));
+    if (!gross.isFinite() || gross.isZero()) return null;
+    return estimateBelgianTransactionTax(gross, category);
+  } catch {
+    // Half-typed input ("1,", "-") — not an error worth showing.
+    return null;
+  }
+}
+
 export function TransactionForm({
   accounts,
   securities,
@@ -101,6 +118,20 @@ export function TransactionForm({
   const type = watch("type");
   const needsSecurity = TYPES_WITH_SECURITY.has(type);
   const needsQuantityPrice = TYPES_WITH_QUANTITY_PRICE.has(type);
+
+  // Belgian transaction tax (TOB). The category is derived from the
+  // selected security's asset type unless the user picks one explicitly —
+  // kept as "override or derive" rather than synced in an effect, so
+  // switching security can't silently discard a deliberate choice and no
+  // cascading re-render is needed (same reasoning as the search field's
+  // `providerResults`).
+  const [tobOverride, setTobOverride] = useState<TobCategory | null>(null);
+  const tobCategory: TobCategory =
+    tobOverride ?? (selectedSecurity ? defaultTobCategory(selectedSecurity.assetType) : "SHARES");
+  const quantity = watch("quantity");
+  const price = watch("price");
+  const currency = watch("currency");
+  const tobEstimate = estimateTob(quantity, price, tobCategory);
 
   function handleSecuritySelect(security: SelectedSecurity) {
     setSelectedSecurity(security);
@@ -246,6 +277,71 @@ export function TransactionForm({
           {errors.currency && <FieldError>{errors.currency.message}</FieldError>}
         </Field>
       </div>
+
+      {/* Belgian stock-exchange tax. Shown as an estimate with an explicit
+       * "use" button rather than written into `taxes` automatically: a
+       * foreign broker doesn't withhold it (so the figure is the user's own
+       * to declare), the rate depends on a fund property the app can't
+       * know, and silently overwriting a number the user copied off a
+       * statement would be worse than not filling it at all. */}
+      {needsQuantityPrice && (
+        <div className="rounded-lg border border-border p-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <Field className="min-w-48 flex-1">
+              <FieldLabel htmlFor="tobCategory">TOB category</FieldLabel>
+              <select
+                id="tobCategory"
+                className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                value={tobCategory}
+                onChange={(e) => setTobOverride(e.target.value as TobCategory)}
+              >
+                {TOB_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {TOB_RATES[c].label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="flex items-center gap-2">
+              <span className="text-sm tabular-nums">
+                {tobEstimate ? (
+                  <>
+                    <span className="text-muted-foreground">Estimated TOB: </span>
+                    <span className="font-medium">
+                      <Money value={tobEstimate.amount.toString()} currency="EUR" />
+                    </span>
+                    {tobEstimate.capped && (
+                      <span className="text-muted-foreground"> (capped)</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">
+                    Enter quantity and price to estimate
+                  </span>
+                )}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!tobEstimate || tobEstimate.amount.isZero()}
+                onClick={() =>
+                  tobEstimate &&
+                  setValue("taxes", tobEstimate.amount.toString(), { shouldValidate: true })
+                }
+              >
+                Use as taxes
+              </Button>
+            </div>
+          </div>
+          <FieldDescription className="mt-2">
+            An estimate for bookkeeping, not tax advice — a Belgian broker already withholds this,
+            a foreign one leaves it to you to declare.
+            {currency !== "EUR" &&
+              ` The tax is assessed in EUR; this trade is in ${currency}, so convert before filing.`}
+          </FieldDescription>
+        </div>
+      )}
 
       <Field>
         <FieldLabel htmlFor="notes">Notes</FieldLabel>

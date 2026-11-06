@@ -13,9 +13,18 @@ interface EditPricePopoverProps {
   ticker: string;
   currency: string;
   currentPrice: string | null;
+  /** Extra classes for the trigger button — the phone layout uses it to
+   * widen the tap target beyond the desktop table's compact icon. */
+  className?: string;
 }
 
-export function EditPricePopover({ securityId, ticker, currency, currentPrice }: EditPricePopoverProps) {
+export function EditPricePopover({
+  securityId,
+  ticker,
+  currency,
+  currentPrice,
+  className,
+}: EditPricePopoverProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(currentPrice ?? "");
@@ -45,7 +54,14 @@ export function EditPricePopover({ securityId, ticker, currency, currentPrice }:
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        render={<Button variant="ghost" size="icon-sm" aria-label={`Edit ${ticker} price`} />}
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={className}
+            aria-label={`Edit ${ticker} price`}
+          />
+        }
       >
         <Pencil className="size-3" />
       </PopoverTrigger>

@@ -69,6 +69,27 @@ export interface FinancialDataProvider {
   getDividends(ticker: string, exchange?: string | null): Promise<ProviderDividendEvent[]>;
 }
 
+/** One share split as the provider reports it. `ratio` is the factor a
+ * holding's quantity is multiplied by — 10 for a 10-for-1 split, 0.1 for a
+ * 1-for-10 reverse split — matching `SplitEvent.ratio` in the finance
+ * layer, so no caller has to re-interpret "10:1" in either direction. */
+export interface ProviderSplitEvent {
+  ticker: string;
+  effectiveDate: Date;
+  ratio: Decimal;
+}
+
+/**
+ * An optional capability, like `NewsCapableProvider`: splits come from
+ * Yahoo's chart endpoint for free, while Twelve Data puts them behind a
+ * paid plan and the `manual` provider has no concept of them. Callers
+ * runtime-check for it (see `isSplitCapable` in
+ * `lib/portfolio/corporateActionSyncService.ts`) rather than assuming.
+ */
+export interface SplitCapableProvider {
+  getSplits(ticker: string, exchange?: string | null): Promise<ProviderSplitEvent[]>;
+}
+
 export interface NewsHeadline {
   title: string;
   publisher: string;

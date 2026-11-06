@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Landmark,
+  Library,
   ArrowLeftRight,
   Coins,
   LineChart,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/portfolio", label: "Portfolio", icon: Landmark },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/securities", label: "Securities", icon: Library },
   { href: "/watchlist", label: "Watchlist", icon: Eye },
   { href: "/dividends", label: "Dividends", icon: Coins },
   { href: "/analytics", label: "Analytics", icon: LineChart },

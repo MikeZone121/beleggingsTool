@@ -11,10 +11,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TransactionForm } from "./transaction-form";
+import type { SelectedSecurity } from "./security-search-field";
 
 interface AddTransactionDialogProps {
   accounts: { id: string; name: string }[];
-  securities: { id: string; ticker: string; name: string; currency: string }[];
+  securities: SelectedSecurity[];
 }
 
 export function AddTransactionDialog({ accounts, securities }: AddTransactionDialogProps) {

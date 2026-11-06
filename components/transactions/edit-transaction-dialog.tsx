@@ -28,7 +28,7 @@ export interface EditableTransaction {
 interface EditTransactionDialogProps {
   transaction: EditableTransaction | null;
   accounts: { id: string; name: string }[];
-  securities: { id: string; ticker: string; name: string; currency: string }[];
+  securities: SelectedSecurity[];
   onOpenChange: (open: boolean) => void;
 }
 
